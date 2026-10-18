@@ -1,5 +1,5 @@
 import "server-only";
-import type { AdmissionPage, GradeComparison, RankingResult, UniversityPage } from "@/lib/types";
+import type { AdmissionPage, GradeComparison, RankingResult, UniversityPage, UniversityDetail } from "@/lib/types";
 import { toQuery } from "@/lib/query.mjs";
 
 /**
@@ -21,6 +21,10 @@ async function apiGet<T>(path: string): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+export function getUniversity(id: number): Promise<UniversityDetail | null> {
+  return apiGet<UniversityDetail>(`/api/v1/universities/${id}`);
 }
 
 export function listUniversities(q: string, page: number): Promise<UniversityPage | null> {
