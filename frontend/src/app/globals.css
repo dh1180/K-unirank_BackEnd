@@ -1,0 +1,74 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, "Noto Sans KR", sans-serif;
+  color: #1e293b;
+  background: #f8fafc;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; word-break: keep-all; overflow-wrap: break-word; }
+a { color: #3157e5; text-decoration: none; }
+a:hover { text-decoration: underline; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid #517be5; outline-offset: 2px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+.site-header { background: #fff; border-bottom: 1px solid #e2e8f0; }
+.header-inner { min-height: 70px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.brand { font-weight: 800; color: #1e293b; font-size: 21px; }
+.site-header nav { display: flex; align-items: center; gap: 20px; }
+.site-header nav a { font-size: 14px; font-weight: 600; color: #334155; }
+.main-content { min-height: calc(100vh - 150px); padding-top: 32px; padding-bottom: 64px; }
+.hero { background: #eef2ff; border-radius: 18px; padding: 42px; margin-bottom: 24px; }
+.eyebrow { color: #3157e5; font-weight: 700; font-size: 13px; }
+h1 { font-size: clamp(25px, 4vw, 36px); line-height: 1.35; margin: 10px 0 15px; }
+h2 { font-size: 20px; line-height: 1.4; }
+p { line-height: 1.65; }
+.hero p { max-width: 720px; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+.button { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #334155; font-weight: 600; }
+.button.primary { background: #3157e5; color: #fff; border-color: #3157e5; }
+.grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.panel, .filter-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px; }
+.page-header { margin: 8px 0 22px; }
+.page-header p, .muted, .help { color: #64748b; }
+.notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin-top: 20px; }
+.search-form { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; }
+input, select { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; min-width: 0; }
+.search-form input { flex: 1; }
+.filter-panel { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.form-field { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.form-field label, .search-form label { font-size: 14px; font-weight: 700; }
+.filter-panel .button { align-self: end; }
+.result-count { margin-top: 24px; font-weight: 700; }
+.item-list { list-style: none; padding: 0; margin: 16px 0; }
+.list-item { display: flex; justify-content: space-between; padding: 18px 12px; border-bottom: 1px solid #e2e8f0; }
+.list-item strong { display: block; }
+.list-item p { margin: 5px 0; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 24px; margin: 24px 0; }
+.pagination span[aria-disabled] { color: #94a3b8; }
+.pagination a { font-weight: 600; }
+.results { margin-top: 24px; }
+.chart-list { list-style: none; padding: 0; }
+.chart-list li { padding: 12px 0; }
+.chart-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 14px; margin-bottom: 10px; }
+.chart-heading span { color: #64748b; }
+.cut-track { height: 11px; border-radius: 7px; background: #e2e8f0; overflow: hidden; }
+.cut-fill { height: 100%; border-radius: 7px; background: #3157e5; }
+.position.ahead { color: #0f766e; }
+.position.behind { color: #b45309; }
+.position.near { color: #3157e5; }
+.metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.metric-grid dt { color: #64748b; font-size: 12px; }
+.metric-grid dd { margin: 3px 0 0; font-weight: 600; }
+.footer { border-top: 1px solid #e2e8f0; font-size: 13px; color: #64748b; padding-top: 20px; padding-bottom: 20px; }
+@media (max-width: 680px) {
+  .header-inner { align-items: flex-start; flex-direction: column; padding-top: 14px; padding-bottom: 14px; gap: 10px; }
+  .site-header nav { gap: 14px; flex-wrap: wrap; }
+  .hero { padding: 24px; }
+  .grid-two, .filter-panel, .metric-grid { grid-template-columns: 1fr; }
+  .panel { padding: 18px; }
+  .search-form { align-items: stretch; }
+  .search-form label { width: 100%; }
+  .search-form input { flex: 1 1 100%; }
+}
