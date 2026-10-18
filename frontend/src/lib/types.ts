@@ -92,3 +92,18 @@ export type AdmissionPage = {
   totalPages: number;
   hasNext: boolean;
 };
+
+export type RankingEntry = {
+  rank: number;
+  university_id: number;
+  name: string;
+  rating: number;
+  match_count: number;
+  win_count: number;
+  loss_count: number;
+};
+
+export type RankingResult = {
+  board: { slug: string; name: string };
+  ranking: RankingEntry[];
+};

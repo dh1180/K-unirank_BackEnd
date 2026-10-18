@@ -72,3 +72,12 @@ input, select { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 9p
   .search-form label { width: 100%; }
   .search-form input { flex: 1 1 100%; }
 }
+
+.ranking-list { list-style: none; padding: 0; margin: 16px 0; }
+.ranking-item { align-items: center; justify-content: flex-start; gap: 18px; }
+.ranking-item > div { flex: 1; min-width: 0; }
+.rank-number { min-width: 44px; color: #3157e5; }
+.rank-rating { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+@media (max-width: 680px) {
+  .rank-rating { font-size: 15px; }
+}
