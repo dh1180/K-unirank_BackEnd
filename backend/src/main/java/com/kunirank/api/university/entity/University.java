@@ -25,6 +25,9 @@ public class University {
     @Column(name = "region", length = 100)
     private String region;
 
+    @Column(name = "address", length = 255)
+    private String address;
+
     @Column(name = "logo_path", length = 255)
     private String logoPath;
 
@@ -52,6 +55,8 @@ public class University {
     public String getShortName() {
         return shortName;
     }
+
+    public String getAddress() { return address; }
 
     public String getRegion() {
         return region;
