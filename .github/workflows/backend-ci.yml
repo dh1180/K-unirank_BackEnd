@@ -1,10 +1,8 @@
 name: Spring Boot CI
 
 on:
+  # Even documentation-only migration PRs must prove the Spring build still works.
   pull_request:
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-ci.yml"
   push:
     branches: [main]
     paths:
