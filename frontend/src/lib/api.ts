@@ -35,6 +35,10 @@ export function compareGrades(params: Record<string, string | number | undefined
   return apiGet<GradeComparison>(`/api/v1/admissions/compare?${toQuery(params)}`);
 }
 
+export function universityAdmissions(id: number, page: number, year?: number): Promise<AdmissionPage | null> {
+  return apiGet<AdmissionPage>(`/api/v1/admissions/universities/${id}?${toQuery({ page, size: 60, year })}`);
+}
+
 export function unitAdmissions(id: number, page: number): Promise<AdmissionPage | null> {
   return apiGet<AdmissionPage>(`/api/v1/admissions/units/${id}?${toQuery({ page, size: 60 })}`);
 }

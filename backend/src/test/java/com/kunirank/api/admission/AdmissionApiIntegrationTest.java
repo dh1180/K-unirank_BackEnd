@@ -132,6 +132,33 @@ class AdmissionApiIntegrationTest {
     }
 
     @Test
+    void universityAdmissionsOnlyReturnsSpecifiedActiveUniversityAndValidCuts() throws Exception {
+        add("제외학과", "학생부교과", "일반", "1.0", "1.00");
+        AdmissionResult kept = add("유지학과", "학생부교과", "일반", "1.0", "1.8");
+        University other = schools.save(new University("다른대학교", "부산", true));
+        AdmissionSource otherSource = sources.save(new AdmissionSource(
+                other, 2026, "ADIGA", "https://example.com/other"));
+        RecruitmentUnit otherUnit = units.save(new RecruitmentUnit(other, "간호학과", "", true));
+        AdmissionResult otherResult = results.save(new AdmissionResult(
+                otherSource, other, otherUnit, 2026, "SUSI", "학생부교과", "일반"));
+        metrics.save(new AdmissionMetric(otherResult,
+                "STUDENT_GRADE_70_CUT", new BigDecimal("2.3"), "등급"));
+
+        mvc.perform(get("/api/v1/admissions/universities/{id}", university.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(kept.getId()));
+
+        mvc.perform(get("/api/v1/admissions/universities/{id}", university.getId())
+                        .param("year", "2025"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(0));
+
+        mvc.perform(get("/api/v1/admissions/universities/999999"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void rejectsInvalidPageInputs() throws Exception {
         mvc.perform(get("/api/v1/admissions/results").param("size", "101"))
                 .andExpect(status().isBadRequest());
