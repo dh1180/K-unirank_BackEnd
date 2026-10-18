@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: kunirank-api
+  datasource:
+    # Supply credentials for a copied PostgreSQL database through env variables.
+    url: ${DB_JDBC_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Never create or update the existing Django schema on application start.
+      ddl-auto: validate
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
