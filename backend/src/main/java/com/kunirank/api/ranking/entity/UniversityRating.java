@@ -48,6 +48,19 @@ public class UniversityRating {
         this.lossCount = lossCount;
     }
 
+    public UniversityRating(RankingBoard board, University university) {
+        this.board = board;
+        this.university = university;
+    }
+
+    public void record(double nextRating, double nextRd, double nextVolatility, boolean win) {
+        this.rating = nextRating;
+        this.ratingDeviation = nextRd;
+        this.volatility = nextVolatility;
+        this.matchCount++;
+        if (win) this.winCount++; else this.lossCount++;
+    }
+
     public Long getId() { return id; }
     public RankingBoard getBoard() { return board; }
     public University getUniversity() { return university; }
