@@ -1,5 +1,5 @@
 import "server-only";
-import type { AdmissionPage, GradeComparison, UniversityPage } from "@/lib/types";
+import type { AdmissionPage, GradeComparison, RankingResult, UniversityPage } from "@/lib/types";
 import { toQuery } from "@/lib/query.mjs";
 
 /**
@@ -33,4 +33,9 @@ export function compareGrades(params: Record<string, string | number | undefined
 
 export function unitAdmissions(id: number, page: number): Promise<AdmissionPage | null> {
   return apiGet<AdmissionPage>(`/api/v1/admissions/units/${id}?${toQuery({ page, size: 60 })}`);
+}
+
+export function ranking(slug: string, limit: number): Promise<RankingResult | null> {
+  const safeSlug = encodeURIComponent(slug);
+  return apiGet<RankingResult>(`/api/v1/boards/${safeSlug}/ranking?limit=${Math.min(200, Math.max(1, limit))}`);
 }
