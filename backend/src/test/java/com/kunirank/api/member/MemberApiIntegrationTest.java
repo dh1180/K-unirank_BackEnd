@@ -95,7 +95,7 @@ class MemberApiIntegrationTest {
         Cookie cookie = login();
         mvc.perform(get("/api/v1/member/me").cookie(cookie))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("test-member"));
+                .andExpect(jsonPath("$.username").value(username));
         mvc.perform(get("/api/v1/member/me"))
                 .andExpect(status().isUnauthorized());
     }
