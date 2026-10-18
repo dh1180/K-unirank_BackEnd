@@ -4,13 +4,11 @@ import com.kunirank.api.university.dto.UniversityPageResponse;
 import com.kunirank.api.university.service.UniversityService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Validated
 @RestController
 @RequestMapping("/api/v1/universities")
 public class UniversityController {
