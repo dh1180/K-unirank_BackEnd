@@ -108,7 +108,7 @@ public final class AdmissionResultPolicy {
 
             String effectivePhase = phase;
             if ((effectivePhase == null || effectivePhase.isBlank())) {
-                if (List.of("student", "holistic", "essay").contains(track)) effectivePhase = "SUSI";
+                if ("student".equals(track) || "holistic".equals(track) || "essay".equals(track)) effectivePhase = "SUSI";
                 if ("csat".equals(track)) effectivePhase = "JEONGSI";
             }
             if ("SUSI".equals(effectivePhase) || "JEONGSI".equals(effectivePhase)) {
