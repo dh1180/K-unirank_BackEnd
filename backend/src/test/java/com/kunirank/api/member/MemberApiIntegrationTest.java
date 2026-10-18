@@ -44,9 +44,11 @@ class MemberApiIntegrationTest {
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
     @Autowired UniversityRepository universities;
+    private String username;
 
     @BeforeEach
     void setup() {
+        username = "test-" + java.util.UUID.randomUUID().toString();
         jdbc.execute("""
             CREATE TABLE IF NOT EXISTS auth_user (
               id BIGSERIAL PRIMARY KEY,
@@ -68,17 +70,17 @@ class MemberApiIntegrationTest {
         jdbc.update("DELETE FROM auth_user");
         universities.deleteAll();
         jdbc.update("INSERT INTO auth_user (username,password,is_active) VALUES (?,?,?)",
-                "test-member", DJANGO_HASH, true);
+                username, DJANGO_HASH, true);
     }
 
     private Cookie login() throws Exception {
         var login = mvc.perform(post("/api/v1/member/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of(
-                        "username", "test-member",
+                        "username", username,
                         "password", "테스트Password!2026"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("test-member"))
+                .andExpect(jsonPath("$.username").value(username))
                 .andReturn().getResponse();
         String header = login.getHeader("Set-Cookie");
         assertNotNull(header);
@@ -102,19 +104,19 @@ class MemberApiIntegrationTest {
     void rejectsWrongPasswordAndInactiveAccount() throws Exception {
         mvc.perform(post("/api/v1/member/login").contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of(
-                        "username", "test-member", "password", "wrong"))))
+                        "username", username, "password", "wrong"))))
                 .andExpect(status().isUnauthorized());
-        jdbc.update("UPDATE auth_user SET is_active=false WHERE username='test-member'");
+        jdbc.update("UPDATE auth_user SET is_active=false WHERE username=?", username);
         mvc.perform(post("/api/v1/member/login").contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of(
-                        "username", "test-member", "password", "테스트Password!2026"))))
+                        "username", username, "password", "테스트Password!2026"))))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void passwordChangeImmediatelyInvalidatesExistingSignedCookie() throws Exception {
         Cookie cookie = login();
-        jdbc.update("UPDATE auth_user SET password=? WHERE username='test-member'", DJANGO_HASH + "new");
+        jdbc.update("UPDATE auth_user SET password=? WHERE username=?", DJANGO_HASH + "new", username);
         mvc.perform(get("/api/v1/member/me").cookie(cookie))
                 .andExpect(status().isUnauthorized());
     }
