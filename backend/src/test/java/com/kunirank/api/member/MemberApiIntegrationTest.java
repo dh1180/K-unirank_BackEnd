@@ -2,6 +2,8 @@ package com.kunirank.api.member;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kunirank.api.member.repository.FavoriteUniversityRepository;
+import com.kunirank.api.admission.entity.RecruitmentUnit;
+import com.kunirank.api.admission.repository.RecruitmentUnitRepository;
 import com.kunirank.api.member.security.MemberSessionService;
 import com.kunirank.api.university.entity.University;
 import com.kunirank.api.university.repository.UniversityRepository;
@@ -44,6 +46,7 @@ class MemberApiIntegrationTest {
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
     @Autowired UniversityRepository universities;
+    @Autowired RecruitmentUnitRepository units;
     private String username;
 
     @BeforeEach
@@ -66,8 +69,19 @@ class MemberApiIntegrationTest {
               UNIQUE (user_id, university_id)
             )
             """);
+        jdbc.execute("""
+            CREATE TABLE IF NOT EXISTS favorite_recruitment_units (
+              favorite_recruitment_unit_id BIGSERIAL PRIMARY KEY,
+              user_id BIGINT NOT NULL,
+              recruitment_unit_id BIGINT NOT NULL,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              UNIQUE(user_id, recruitment_unit_id)
+            )
+            """);
+        jdbc.update("DELETE FROM favorite_recruitment_units");
         jdbc.update("DELETE FROM favorite_universities");
         jdbc.update("DELETE FROM auth_user");
+        units.deleteAll();
         universities.deleteAll();
         jdbc.update("INSERT INTO auth_user (username,password,is_active) VALUES (?,?,?)",
                 username, DJANGO_HASH, true);
@@ -142,6 +156,29 @@ class MemberApiIntegrationTest {
         mvc.perform(delete("/api/v1/member/favorites/universities/{id}", u.getId())
                 .cookie(cookie)).andExpect(status().isNoContent());
         mvc.perform(get("/api/v1/member/favorites/universities").cookie(cookie))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+
+    @Test
+    void existingFavoriteRecruitmentUnitsCanBeAddedListedAndRemoved() throws Exception {
+        Cookie cookie = login();
+        University u = universities.save(new University("예시대학교", "서울", true));
+        RecruitmentUnit unit = units.save(new RecruitmentUnit(u, "컴퓨터공학과", "공과대학", true));
+        RecruitmentUnit disabled = units.save(new RecruitmentUnit(u, "폐지학과", "공과대학", false));
+        String path = "/api/v1/member/favorites/units/{id}";
+
+        mvc.perform(put(path, unit.getId()).cookie(cookie)).andExpect(status().isNoContent());
+        mvc.perform(put(path, unit.getId()).cookie(cookie)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/member/favorites/units").cookie(cookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("컴퓨터공학과"))
+                .andExpect(jsonPath("$[0].universityName").value("예시대학교"));
+        mvc.perform(put(path, disabled.getId()).cookie(cookie)).andExpect(status().isNotFound());
+        mvc.perform(put(path, unit.getId())).andExpect(status().isUnauthorized());
+        mvc.perform(delete(path, unit.getId()).cookie(cookie)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/member/favorites/units").cookie(cookie))
                 .andExpect(jsonPath("$.length()").value(0));
     }
 

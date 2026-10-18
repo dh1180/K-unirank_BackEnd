@@ -7,6 +7,8 @@
 - POST `/api/v1/member/login` `{"username":"...", "password":"..."}`
 - GET `/api/v1/member/me`: 쿠키 기반 사용자 기본 프로필 반환
 - POST `/api/v1/member/logout`: 프런트 브라우저의 쿠키 삭제
+- GET `/api/v1/member/favorites/units`: 기존 관심 학과/모집단위 목록
+- PUT/DELETE `/api/v1/member/favorites/units/{id}`: 관심 모집단위 등록/해제 (idempotent)
 - GET `/api/v1/member/favorites/universities`: 기존 관심 대학 목록
 - PUT/DELETE `/api/v1/member/favorites/universities/{id}`: 관심 대학 등록/해제 (idempotent)
 
@@ -20,4 +22,4 @@
 - 개발 API가 외부에 노출되지 않게 Railway 비공개 네트워크만 사용. Next.js BFF에서 Origin/CSRF 검증을 추가한 뒤에만 활성화.
 - 실사용 데이터 스키마와 사용자 해시 알고리즘 비율은 아직 검증하지 않았으며, 테스트는 독립 DB의 합성 사용자 데이터 기준.
 - 운영 배포 시 기존 Django와 Spring이 `favorite_universities`를 동시에 쓰지 않도록 cutover 이전에 한쪽 쓰기를 반드시 중단.
-- 추가 회원 정보, 회원가입, 비밀번호 재설정, 즐겨찾기 모집단위와 VS 사용자 세션 결합은 후속 단계.
+- 추가 회원 정보, 회원가입, 비밀번호 재설정, VS 사용자 세션 결합은 후속 단계.
