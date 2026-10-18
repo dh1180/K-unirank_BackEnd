@@ -4,6 +4,7 @@ import com.kunirank.api.admission.dto.*;
 import com.kunirank.api.admission.entity.*;
 import com.kunirank.api.admission.policy.AdmissionResultPolicy;
 import com.kunirank.api.admission.repository.*;
+import com.kunirank.api.university.repository.UniversityRepository;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.*;
@@ -18,13 +19,16 @@ public class AdmissionQueryService {
     private final AdmissionResultRepository results;
     private final AdmissionMetricRepository metrics;
     private final RecruitmentUnitRepository units;
+    private final UniversityRepository universities;
 
     public AdmissionQueryService(AdmissionResultRepository results,
                                  AdmissionMetricRepository metrics,
-                                 RecruitmentUnitRepository units) {
+                                 RecruitmentUnitRepository units,
+                                 UniversityRepository universities) {
         this.results = results;
         this.metrics = metrics;
         this.units = units;
+        this.universities = universities;
     }
 
     @Transactional(readOnly = true)
@@ -45,6 +49,21 @@ public class AdmissionQueryService {
             selected = latest.isEmpty() ? null : latest.getContent().get(0).getAdmissionYear();
         }
         return page(base, selected, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public AdmissionPageResponse forUniversity(long universityId, Integer year,
+                                               String metricsMode, int page, int size) {
+        universities.findById(universityId)
+                .filter(com.kunirank.api.university.entity.University::isActive)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "대학을 찾을 수 없습니다."));
+        Specification<AdmissionResult> base = Specification.where(AdmissionResultPolicy.visible())
+                .and((root, query, cb) -> cb.equal(root.get("university").get("id"), universityId))
+                .and((root, query, cb) -> cb.isTrue(root.get("unit").get("active")));
+        if (!"all".equalsIgnoreCase(metricsMode)) {
+            base = base.and(AdmissionResultPolicy.hasPublicMetric());
+        }
+        return page(base, year, page, size);
     }
 
     @Transactional(readOnly = true)

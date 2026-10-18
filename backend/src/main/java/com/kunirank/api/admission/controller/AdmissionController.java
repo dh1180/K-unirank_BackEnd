@@ -29,6 +29,17 @@ public class AdmissionController {
         return admissions.search(year, q, kind, phase, track, metricsMode, page, size);
     }
 
+    @GetMapping("/universities/{id}")
+    public AdmissionPageResponse university(
+            @PathVariable @Min(1) long id,
+            @RequestParam(required = false) @Min(1) Integer year,
+            @RequestParam(defaultValue = "public", name = "metrics") String metricsMode,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "60") @Min(1) @Max(100) int size
+    ) {
+        return admissions.forUniversity(id, year, metricsMode, page, size);
+    }
+
     @GetMapping("/units/{id}")
     public AdmissionPageResponse unit(
             @PathVariable @Min(1) long id,
