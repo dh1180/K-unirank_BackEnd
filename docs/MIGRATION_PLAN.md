@@ -1,36 +1,32 @@
-# K-unirank Django → Spring Boot + React 단계별 전환
+# K-unirank Django → Spring Boot · React · FastAPI 전환
 
-## 기본 원칙
+## 저장소 분리
 
-- 기존 [K-unirank_v2](https://github.com/dh1180/K-unirank_v2)의 Django 운영 서비스는 전환 완료 전까지 유지
-- 기존 Railway PostgreSQL의 데이터·테이블·PK/FK·UUID·로그 및 회원 관계 보존
-- 개발 중 **운영 DB에 연결하지 않음**. 별도의 백업 복제 DB를 사용하고, 필요시 개인정보 마스킹
-- Spring Data JPA의 운영 설정은 `ddl-auto=validate`; 자동 DDL 변경 금지
-- 생산 중인 DB를 Django와 Spring이 동시에 쓰지 않도록 쓰기 주체 단일화
-- `/support/`는 기존 정책대로 비공개 유지
+- [BackEnd (Spring Boot)](https://github.com/dh1180/K-unirank_BackEnd) — 이 저장소의 `backend/` 디렉터리
+- [FrontEnd (Next.js)](https://github.com/dh1180/K-unirank_FrontEnd) — 원래 `frontend/` 소스를 **별도 저장소 루트로 이동**, 백엔드에서 중복 제거
+- [AI (FastAPI)](https://github.com/dh1180/K-unirank_AI) — Raspberry Pi 5에서 실행하는 읽기 전용 입결 도구·향후 RAG/LLM
+- [원본 Django 운영 서비스](https://github.com/dh1180/K-unirank_v2) — 서비스 전환 전까지 그대로 운영
 
-## 현재 Django 호환성 주의사항
+## 공통 원칙
 
-1. **대학:** `universities`, `university_campuses` 등의 테이블, 대학·캠퍼스 고유 ID 유지.
-2. **입결:** `admission_results`, `admission_metrics`, `admission_aggregates` 조회 결과 일치. 동일 `AdmissionResult`의 학생부 50% 및 70% 컷이 **둘 다 1.0인 비의치한약수 결과만** 제외하는 정책 필수 이식. 한쪽만 1.0이면 유지.
-3. **성적 비교:** 70% 컷 우선 / 없으면 50% 컷 사용; 특별전형 기본 제외; 차트 최소 표본 2건; 대학 입학처 출처 우선 정책 유지.
-4. **회원:** Django `auth_user` 비밀번호 해시와 Spring Security 검증 호환 전략 필요. 사용자 ID 및 기존 관심 대학 유지.
-5. **VS/랭킹:** `comparison_votes` 원본, `university_ratings` 상태, Glicko-2 계산 보존. 같은 세션 동일 대진 영향력 100%/35%/0%, 점수 cap, DB 트랜잭션·동시성 정책 이식.
-6. **SEO:** 기존 대학/학과 URL, canonical, robots, sitemap, 메타데이터, 구조화 데이터, AdSense/GA4 유지.
+1. 기존 Railway PostgreSQL과 Django 배포에 직접 변경을 적용하지 않는다.
+2. 기존 대학·학과 ID, 입결·투표 데이터, 회원 관계를 그대로 재사용하며 **복제 DB에서 우선 검증**한다.
+3. 운영 DB 스키마는 Django와 Flyway가 동시에 변경하지 않도록 전환 시점까지 관리 주체를 하나로 유지한다.
+4. 학생부 **50%와 70% 컷이 모두 1.0**인 **비의치한약수** 입결만 제외한다. 한쪽이라도 1.0보다 큰 값은 보존한다.
+5. 성적 비교에서 70% 우선, 특별전형 기본 제외, 표본 수 필터, 출처 우선 정책을 유지한다.
+6. 기존 URL, sitemap, robots, canonical, AdSense/GA4, VS/Glicko-2를 단계별로 검증한 후 도메인을 전환한다.
+7. 후원 공개 기능은 계속 비공개로 유지한다.
 
-## 구현 순서
+## 남은 개발
 
-1. **PR 1 — Spring Boot 초기 기반 + 대학 조회:** 복제 DB 연결, Entity 매핑, 읽기 전용 대학 검색/페이지 API, Testcontainers + CI.
-2. **PR 2 — 입시 도메인 DB 매핑:** 학과·입결·지표 조회 및 정합성 비교, 이상치/출처 선택 로직 재현.
-3. **PR 3 — 입결 비교·랭킹 API:** 검색 조건, 통계 및 차트 결과 일치 검증.
-4. **PR 4 — Next.js 기반/UI:** 검색·상세·차트·순위 페이지, SEO와 모바일 QA.
-5. **PR 5 — 회원/VS:** 해시·세션 호환, 투표 쓰기·Glicko-2 동시성 회귀 테스트.
-6. **PR 6 — Railway 병행 검증 및 전환:** 최종 DB 권한 및 쓰기 주체 관리, 도메인 이전, 롤백.
+- Spring Boot: 인증/회원, 즐겨찾기, VS 매칭·Glicko-2 투표 쓰기 및 중복/동시성 테스트
+- FrontEnd: 기존 Django UI 동등성, VS 화면/로그인, SEO·광고, 이미지 자산
+- AI: Spring→FastAPI 인증된 HTTP 호출, LLM·모집요강 RAG, 평가 하네스, Pi 운영
+- 통합: 별도 개발 DB에 실제 Django 백업 복원 후 API 검색 결과 수·계산값 비교
+- 운영: Railway 신규 서비스 병행 검증, 성능·장애 복구·롤백 계획 작성
 
-## Railway 목표 구조
+## 배포 아키텍처
 
-- `web`: Next.js/React 프런트엔드
-- `api`: Spring Boot
-- `postgres`: 기존 Railway PostgreSQL
+Railway: Next.js Web + Spring Boot API + 기존 PostgreSQL. Raspberry Pi 5: FastAPI AI 서버. Spring Boot → AI는 인증된 HTTPS 터널을 통해 호출하고, Pi와 PostgreSQL을 직접 연결하지 않는다.
 
-최종 전환 전에는 별도의 테스트 DB 및 테스트 서비스에서만 검증합니다.
+배포 전의 개발 미리보기는 `noindex` 유지. Spring과 Django의 **운영 DB 쓰기 중복 금지**.
