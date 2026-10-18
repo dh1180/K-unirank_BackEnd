@@ -1,0 +1,28 @@
+# Java / Maven
+**/target/
+*.class
+*.log
+
+# JavaScript / Next.js (planned)
+**/node_modules/
+**/.next/
+**/out/
+**/coverage/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/application-local.yml
+**/application-secret.yml
+
+# Build-specific
+*.jar
+*.war
