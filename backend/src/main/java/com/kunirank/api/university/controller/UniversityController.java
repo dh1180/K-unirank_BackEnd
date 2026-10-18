@@ -5,6 +5,8 @@ import com.kunirank.api.university.service.UniversityService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import com.kunirank.api.university.dto.UniversityDetailResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +19,11 @@ public class UniversityController {
 
     public UniversityController(UniversityService universityService) {
         this.universityService = universityService;
+    }
+
+    @GetMapping("/{id}")
+    public UniversityDetailResponse detail(@PathVariable @Min(1) Long id) {
+        return universityService.findUniversity(id);
     }
 
     @GetMapping

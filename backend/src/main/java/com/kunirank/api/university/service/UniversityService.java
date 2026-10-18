@@ -1,6 +1,10 @@
 package com.kunirank.api.university.service;
 
 import com.kunirank.api.university.dto.UniversityPageResponse;
+import com.kunirank.api.university.dto.UniversityDetailResponse;
+import com.kunirank.api.admission.repository.RecruitmentUnitRepository;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import com.kunirank.api.university.dto.UniversitySummaryResponse;
 import com.kunirank.api.university.entity.University;
 import com.kunirank.api.university.repository.UniversityRepository;
@@ -19,9 +23,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class UniversityService {
 
     private final UniversityRepository universityRepository;
+    private final RecruitmentUnitRepository recruitmentUnitRepository;
 
-    public UniversityService(UniversityRepository universityRepository) {
+    public UniversityService(UniversityRepository universityRepository,
+                             RecruitmentUnitRepository recruitmentUnitRepository) {
         this.universityRepository = universityRepository;
+        this.recruitmentUnitRepository = recruitmentUnitRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public UniversityDetailResponse findUniversity(Long id) {
+        var university = universityRepository.findById(id)
+                .filter(University::isActive)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "대학을 찾을 수 없습니다."));
+        var units = recruitmentUnitRepository
+                .findByUniversityIdAndActiveTrueOrderByNameAscIdAsc(id)
+                .stream()
+                .map(UniversityDetailResponse.UnitSummary::from)
+                .toList();
+        return UniversityDetailResponse.from(university, units);
     }
 
     @Transactional(readOnly = true)

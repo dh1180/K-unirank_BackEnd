@@ -28,6 +28,15 @@ public class University {
     @Column(name = "address", length = 255)
     private String address;
 
+    @Column(name = "homepage_url", length = 500)
+    private String homepageUrl;
+
+    @Column(name = "university_type", length = 100)
+    private String universityType;
+
+    @Column(name = "establishment_type", length = 50)
+    private String establishmentType;
+
     @Column(name = "logo_path", length = 255)
     private String logoPath;
 
@@ -61,6 +70,10 @@ public class University {
     public String getRegion() {
         return region;
     }
+
+    public String getHomepageUrl() { return homepageUrl; }
+    public String getUniversityType() { return universityType; }
+    public String getEstablishmentType() { return establishmentType; }
 
     public String getLogoPath() {
         return logoPath;

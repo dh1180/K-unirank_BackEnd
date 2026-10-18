@@ -1,6 +1,8 @@
 package com.kunirank.api.university;
 
 import com.kunirank.api.university.entity.University;
+import com.kunirank.api.admission.entity.RecruitmentUnit;
+import com.kunirank.api.admission.repository.RecruitmentUnitRepository;
 import com.kunirank.api.university.repository.UniversityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,9 +38,12 @@ class UniversityApiIntegrationTest {
 
     @Autowired
     private UniversityRepository repository;
+    @Autowired
+    private RecruitmentUnitRepository unitRepository;
 
     @BeforeEach
     void setUp() {
+        unitRepository.deleteAll();
         repository.deleteAll();
         repository.saveAll(List.of(
                 new University("Alpha University", "서울", true),
@@ -82,6 +87,33 @@ class UniversityApiIntegrationTest {
     void rejectsInvalidPageSize() throws Exception {
         mockMvc.perform(get("/api/v1/universities").param("size", "101"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void detailReturnsActiveUniversityAndOnlyActiveUnits() throws Exception {
+        var alpha = repository.findAll().stream()
+                .filter(university -> university.getName().equals("Alpha University"))
+                .findFirst().orElseThrow();
+        unitRepository.save(new RecruitmentUnit(alpha, "컴퓨터공학과", "공과대학", true));
+        unitRepository.save(new RecruitmentUnit(alpha, "폐지학과", "공과대학", false));
+
+        mockMvc.perform(get("/api/v1/universities/{id}", alpha.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Alpha University"))
+                .andExpect(jsonPath("$.region").value("서울"))
+                .andExpect(jsonPath("$.units.length()").value(1))
+                .andExpect(jsonPath("$.units[0].name").value("컴퓨터공학과"));
+    }
+
+    @Test
+    void detailReturns404ForInactiveOrUnknownUniversity() throws Exception {
+        var inactive = repository.findAll().stream()
+                .filter(university -> university.getName().equals("Gamma University"))
+                .findFirst().orElseThrow();
+        mockMvc.perform(get("/api/v1/universities/{id}", inactive.getId()))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/universities/{id}", 999999L))
+                .andExpect(status().isNotFound());
     }
 
     @Test

@@ -40,7 +40,7 @@ export default async function UniversitiesPage({
               {data.items.map(item => (
                 <li className="list-item" key={item.id}>
                   <div>
-                    <strong>{item.name}</strong>
+                    <strong><Link href={`/universities/${item.id}/`}>{item.name}</Link></strong>
                     <p className="muted">{item.region ?? "지역 미상"} · 대학 ID {item.id}</p>
                   </div>
                 </li>
@@ -50,7 +50,7 @@ export default async function UniversitiesPage({
           <Pagination href="/universities/" page={page} hasNext={data.hasNext} params={{ q }} />
         </>
       )}
-      <p className="help">대학 상세 조회 API 및 상세 페이지는 후속 PR에서 구현할 예정이야.</p>
+
     </>
   );
 }

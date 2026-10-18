@@ -6,6 +6,14 @@ export type University = {
   logoPath: string | null;
 };
 
+export type UniversityDetail = University & {
+  address: string | null;
+  homepageUrl: string | null;
+  universityType: string | null;
+  establishmentType: string | null;
+  units: Array<{ id: number; name: string; collegeName: string }>;
+};
+
 export type UniversityPage = {
   items: University[];
   page: number;
