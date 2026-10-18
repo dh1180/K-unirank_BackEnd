@@ -1,0 +1,11 @@
+.git
+.github
+frontend
+docs
+**/target
+**/node_modules
+**/.next
+**/.env
+**/.env.*
+!**/.env.example
+README.md
