@@ -35,6 +35,9 @@ public class AdmissionResult {
     @Column(name = "selection_name", nullable = false, length = 200)
     private String selectionName = "";
 
+    @Column(name = "recruitment_group", nullable = false, length = 30)
+    private String recruitmentGroup = "";
+
     @Column(name = "recruitment_count")
     private Integer recruitmentCount;
 

@@ -2,6 +2,7 @@ package com.kunirank.api.admission.entity;
 
 import com.kunirank.api.university.entity.University;
 import jakarta.persistence.*;
+import java.time.Instant;
 
 @Entity
 @Table(name = "admission_sources")
@@ -22,6 +23,20 @@ public class AdmissionSource {
 
     @Column(name = "source_url", nullable = false, length = 1000)
     private String sourceUrl;
+
+    @Column(name = "document_title", nullable = false, length = 300)
+    private String documentTitle = "";
+
+    @Column(name = "collected_at", nullable = false)
+    private Instant collectedAt;
+
+    @Column(name = "checksum", nullable = false, length = 64)
+    private String checksum = "";
+
+    @PrePersist
+    private void setCollectionTime() {
+        if (collectedAt == null) collectedAt = Instant.now();
+    }
 
     protected AdmissionSource() {}
 

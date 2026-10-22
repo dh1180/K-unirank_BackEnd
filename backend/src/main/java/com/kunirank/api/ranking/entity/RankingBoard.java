@@ -1,6 +1,7 @@
 package com.kunirank.api.ranking.entity;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 
 @Entity
 @Table(name = "ranking_boards")
@@ -18,6 +19,28 @@ public class RankingBoard {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    @Column(name = "description", nullable = false, length = 255)
+    private String description = "";
+
+    @Column(name = "display_order", nullable = false)
+    private int displayOrder;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @PrePersist
+    private void onCreate() {
+        Instant now = Instant.now();
+        if (createdAt == null) createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    private void onUpdate() { updatedAt = Instant.now(); }
 
     protected RankingBoard() {}
 

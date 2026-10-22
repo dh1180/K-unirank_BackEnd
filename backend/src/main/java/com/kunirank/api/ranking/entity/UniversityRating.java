@@ -2,6 +2,7 @@ package com.kunirank.api.ranking.entity;
 
 import com.kunirank.api.university.entity.University;
 import jakarta.persistence.*;
+import java.time.Instant;
 
 @Entity
 @Table(name = "university_ratings")
@@ -35,6 +36,13 @@ public class UniversityRating {
 
     @Column(name = "loss_count", nullable = false)
     private long lossCount;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @PrePersist
+    @PreUpdate
+    private void setUpdateTimestamp() { updatedAt = Instant.now(); }
 
     protected UniversityRating() {}
 
