@@ -6,6 +6,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import java.time.Instant;
 
 @Entity
 @Table(name = "universities")
@@ -42,6 +45,24 @@ public class University {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @PrePersist
+    private void onCreate() {
+        Instant now = Instant.now();
+        if (createdAt == null) createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    private void onUpdate() {
+        updatedAt = Instant.now();
+    }
 
     protected University() {
         // Required by JPA.
