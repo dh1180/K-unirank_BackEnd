@@ -25,10 +25,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-          cache: maven
-          cache-dependency-path: backend/pom.xml
-      - name: Verify tests
-        run: mvn -B --no-transfer-progress verify
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Verify tests and build bootJar
+        run: ./gradlew --no-daemon test bootJar
       - name: Build Railway Docker image
         working-directory: .
         run: docker build --tag kunirank-backend:ci .

@@ -26,11 +26,11 @@ Equal counts confirm snapshot-level row totals, **not** equality of each row or 
 
    (for example: -StagingPort 15432; use the actual tunnel port). Only input the staging DB password when prompted. It will not be displayed. Never paste the password here.
 
-4. If you do not have JDK 21 and Maven 3.9+ installed, run the SQL-only portion first:
+4. If you do not have JDK 21 installed, run the SQL-only portion first:
 
     .\scripts\verify-staging.ps1 -StagingPort YOUR_STAGING_TUNNEL_PORT -SqlOnly
 
-   That is just a reconfirmation of row totals; it does **not** prove Spring Boot works. To run Hibernate schema validation and the API smoke test, install Java 21 + Maven and rerun without -SqlOnly.
+   That is just a reconfirmation of row totals; it does **not** prove Spring Boot works. To run Hibernate schema validation and the API smoke test, install JDK 21 and rerun without -SqlOnly. Gradle is provisioned via the checked-in wrapper (`backend/gradlew.bat`); no Maven or system Gradle installation is needed.
 
 5. If Windows PowerShell execution policy blocks the reviewed script, use a process-scoped bypass only:
 
@@ -43,7 +43,7 @@ Equal counts confirm snapshot-level row totals, **not** equality of each row or 
 - The script does **not** automatically distinguish production and staging tunnels at the same localhost port. The operator must verify the Railway CLI environment is **staging** before typing STAGING at the prompt.
 - The Java tests use only university, admissions, comparison, and VS counts/read-only API requests. They do not query auth_user, django_session, or favorites and do not export student, password, or identity rows.
 - The tests may deliberately fail if SQL mappings, cut metric values, or controller assumptions differ from the real staging data. That failure is actionable; share only redacted error text, never the dump or secrets.
-- CI's ordinary unit and synthetic Testcontainers tests remain unchanged: the opt-in staging test is skipped there.
+- CI's ordinary unit and synthetic Testcontainers tests remain enabled: the opt-in staging test is skipped there.
 - This does not configure Railway services or change the production Django application.
 
 ## Next
