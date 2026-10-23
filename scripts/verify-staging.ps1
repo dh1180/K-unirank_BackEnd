@@ -1,3 +1,4 @@
+﻿# Keep this script UTF-8 with BOM for Windows PowerShell 5.1 compatibility.
 # Run only with the Railway STAGING tunnel active in ANOTHER terminal.
 # This script issues SELECT requests only and never uploads the DB dump.
 [CmdletBinding()]
