@@ -45,4 +45,4 @@ docker run --rm -p 8080:8080 \
 
 `host.docker.internal`은 Docker 환경별로 사용할 수 있는 주소가 다르므로 Linux에서는 호스트 네트워크 설정을 확인하세요. 운영 DB 자격 증명은 사용하지 마세요.
 
-CI는 기존 Maven 통합 테스트에 더해 Docker 이미지도 빌드해 Dockerfile 정확성을 확인합니다.
+CI는 Gradle Wrapper 기반 통합 테스트에 더해 Docker 이미지도 빌드해 Dockerfile 정확성을 확인합니다.

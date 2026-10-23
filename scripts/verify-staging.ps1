@@ -43,18 +43,24 @@ try {
         Write-Host "SQL 점검 성공. -SqlOnly이므로 Java 검증은 수행하지 않았어."
         return
     }
-    if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
-        Write-Host "Maven을 찾지 못했어. SQL 조회만 성공했고 Spring Boot 실데이터 검증은 아직이야."
-        Write-Host "JDK 21과 Maven 3.9+를 설치한 뒤 동일한 명령으로 다시 실행하면 돼."
+    $java = Get-Command java -ErrorAction SilentlyContinue
+    $javac = Get-Command javac -ErrorAction SilentlyContinue
+    if (-not $java -or -not $javac) {
+        Write-Host "Java JDK를 찾지 못했어. SQL 조회만 성공했고 Spring Boot 실데이터 검증은 아직이야."
+        Write-Host "JDK 21을 설치하고 java -version 및 javac -version을 확인해 줘."
         return
+    }
+    $gradleWrapper = Join-Path $PSScriptRoot "..\backend\gradlew.bat"
+    if (-not (Test-Path -LiteralPath $gradleWrapper)) {
+        throw "Gradle Wrapper를 찾을 수 없어: $gradleWrapper. git pull --ff-only로 저장소를 갱신해 줘."
     }
 
     $env:KUNIRANK_STAGING_SMOKE = "YES"
     Push-Location (Join-Path $PSScriptRoot "..\backend")
     try {
         Write-Host "2/2: Spring Boot Hibernate validate + staging 조회 API 검증"
-        & mvn -B "-Dtest=StagingReadOnlySmokeTest" "-DfailIfNoTests=true" test
-        if ($LASTEXITCODE -ne 0) { throw "Spring Boot staging 실데이터 테스트 실패: $LASTEXITCODE" }
+        & $gradleWrapper --no-daemon test --tests "com.kunirank.api.StagingReadOnlySmokeTest"
+        if ($LASTEXITCODE -ne 0) { throw "Spring Boot Gradle staging 실데이터 테스트 실패: $LASTEXITCODE" }
     } finally {
         Pop-Location
     }

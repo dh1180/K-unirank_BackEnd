@@ -23,24 +23,24 @@ K-unirank의 **Spring Boot REST API 전용 저장소**입니다. 이전 `K-unira
 
 ## 로컬 실행
 
-JDK 21, Maven 3.9+, 별도 개발용 PostgreSQL 복제본을 준비하세요.
+JDK 21과 별도 개발용 PostgreSQL 복제본을 준비하세요. Gradle은 별도 설치하지 않고 프로젝트의 Gradle Wrapper(`gradlew` / Windows `gradlew.bat`)를 사용합니다.
 
 ```bash
 export DB_JDBC_URL='jdbc:postgresql://localhost:5433/kunirank'
 export DB_USER='kunirank_readonly'
 export DB_PASSWORD='YOUR_LOCAL_PASSWORD'
 cd backend
-mvn spring-boot:run
+./gradlew bootRun
 ```
 
 `spring.jpa.hibernate.ddl-auto=validate`로 **기존 DB 스키마를 수정하지 않고 일치 여부만 검증**합니다.
 
 ```bash
 cd backend
-mvn verify
+./gradlew test bootJar
 ```
 
-테스트는 독립 PostgreSQL Testcontainers 인스턴스에서 실행됩니다(Docker 필요).
+일반 통합 테스트는 독립 PostgreSQL Testcontainers 인스턴스에서 실행됩니다(Docker 필요). Windows PowerShell의 실제 staging 읽기 전용 검증은 `scripts/verify-staging.ps1`에서 `backend/gradlew.bat`을 사용하며 Maven 설치가 필요 없습니다.
 
 ## 주요 API
 

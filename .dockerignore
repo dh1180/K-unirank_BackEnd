@@ -3,6 +3,8 @@
 frontend
 docs
 **/target
+**/build
+**/.gradle
 **/node_modules
 **/.next
 **/.env

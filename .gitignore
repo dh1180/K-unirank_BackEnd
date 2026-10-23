@@ -1,4 +1,6 @@
-# Java / Maven
+# Java / Gradle
+**/build/
+**/.gradle/
 **/target/
 *.class
 *.log
@@ -25,4 +27,5 @@
 
 # Build-specific
 *.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 *.war
