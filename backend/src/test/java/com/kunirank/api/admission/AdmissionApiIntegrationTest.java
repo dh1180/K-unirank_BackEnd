@@ -159,6 +159,35 @@ class AdmissionApiIntegrationTest {
     }
 
     @Test
+    void universitySearchCombinesFiltersBeforePaginationAndRetainsMetricMode() throws Exception {
+        add("컴퓨터공학과", "학생부교과", "일반", "2.1", "2.4");
+        add("컴퓨터공학과", "학생부종합", "종합", "2.5", "2.7");
+        add("컴퓨터공학과", "학생부교과", "미공개", null, null);
+        add("간호학과", "학생부교과", "일반", "2.2", "2.6");
+
+        mvc.perform(get("/api/v1/admissions/universities/{id}", university.getId())
+                        .param("q", "컴퓨터").param("phase", "SUSI")
+                        .param("track", "student").param("year", "2026").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.items[0].recruitmentUnitName").value("컴퓨터공학과"));
+        mvc.perform(get("/api/v1/admissions/universities/{id}", university.getId())
+                        .param("q", "컴퓨터").param("track", "student")
+                        .param("metrics", "all").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(2))
+                .andExpect(jsonPath("$.hasNext").value(true));
+        mvc.perform(get("/api/v1/admissions/universities/{id}", university.getId())
+                        .param("q", "컴퓨터").param("phase", "JEONGSI"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(0));
+        mvc.perform(get("/api/v1/admissions/universities/{id}", university.getId())
+                        .param("q", "%"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(0));
+    }
+
+    @Test
     void rejectsInvalidPageInputs() throws Exception {
         mvc.perform(get("/api/v1/admissions/results").param("size", "101"))
                 .andExpect(status().isBadRequest());
