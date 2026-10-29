@@ -72,7 +72,7 @@ public class RankingDiscoveryService {
             SELECT u.university_id,u.name,u.logo_path,u.region,i.value,i.source_url,i.year
             FROM university_indicators i JOIN universities u ON u.university_id=i.university_id
             WHERE i.indicator_code=? AND i.source='ACADEMYINFO' AND i.value>0 AND u.is_active AND i.year=?
-            """,(rs,n)->new Row(0,rs.getLong("university_id"),rs.getString("name"),rs.getString("logo_path"),
+            """ + " ORDER BY i.value " + (spec.ascending()?"ASC":"DESC") + ",u.name",(rs,n)->new Row(0,rs.getLong("university_id"),rs.getString("name"),rs.getString("logo_path"),
                 rs.getString("region"),rs.getBigDecimal("value"),0,rs.getString("source_url"),rs.getInt("year")),
             spec.code(),chosen);
         return paginate(spec,chosen,years,rows,query,region,page,size);
@@ -92,7 +92,7 @@ public class RankingDiscoveryService {
                 SELECT u.university_id,u.name,u.logo_path,u.region,a.value,a.sample_count,a.admission_year
                 FROM admission_aggregates a JOIN universities u ON u.university_id=a.university_id
                 WHERE a.admission_year=? AND a.admission_phase=? AND a.selection_category=? AND a.metric_code=?
-                """,(rs,n)->new Row(0,rs.getLong("university_id"),rs.getString("name"),rs.getString("logo_path"),
+                """ + " ORDER BY a.value " + (susi?"ASC":"DESC") + ",u.name",(rs,n)->new Row(0,rs.getLong("university_id"),rs.getString("name"),rs.getString("logo_path"),
                     rs.getString("region"),rs.getBigDecimal("value"),rs.getInt("sample_count"),"",rs.getInt("admission_year")),
                 chosen,phase,susi?"학생부교과":"수능",code);
         } else if(chosen!=null) {
@@ -117,13 +117,16 @@ public class RankingDiscoveryService {
                 var u=used.get(0).getResult().getUniversity();
                 rows.add(new Row(0,u.getId(),u.getName(),u.getLogoPath(),u.getRegion(),numerator.divide(denominator,MathContext.DECIMAL128),used.size(),"",chosen));
             }
+            // Django's college aggregator sorts in Python; preserve its Unicode name tie-break.
+            rows.sort(Comparator.comparing(Row::name));
         }
         return paginate(spec,chosen,years,rows,query,region,page,size);
     }
     private Page paginate(Metric metric,Integer year,List<Integer> years,List<Row> source,String query,String region,int page,int size) {
         Comparator<Row> order=Comparator.comparing(Row::value);
         if(!metric.ascending()) order=order.reversed();
-        List<Row> sorted=source.stream().sorted(order.thenComparing(Row::name).thenComparingLong(Row::universityId)).toList();
+        // Stable value sort preserves PostgreSQL collation for official/aggregate ties.
+        List<Row> sorted=source.stream().sorted(order).toList();
         List<String> regions=sorted.stream().map(Row::region).filter(Objects::nonNull).filter(r->!r.isBlank()).distinct().sorted().toList();
         String q=query==null?"":query.strip().toLowerCase(Locale.ROOT);
         List<Row> filtered=new ArrayList<>();
