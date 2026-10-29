@@ -1,6 +1,38 @@
 # K-unirank Spring Boot Railway 배포 준비
 
-**현재는 배포 가이드만 준비했습니다.** 실제 운영 DB 연결·Railway 서비스 생성·도메인 전환은 수행하지 않았습니다.
+## 기존 Postgres 직접 연결 (2026-10-29)
+
+기존 `focused-enjoyment` 프로젝트의 `production` 환경에서 Django `web`과 별도인 Spring `api` 서비스를 사용합니다. DB는 현재 `Postgres`를 그대로 참조합니다. 초기 연결은 `railway-readonly` 프로필로 검증합니다.
+
+| api 서비스 변수 | 값 |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `railway-readonly` |
+| `PGHOST` | `${{Postgres.PGHOST}}` |
+| `PGPORT` | `${{Postgres.PGPORT}}` |
+| `PGDATABASE` | `${{Postgres.PGDATABASE}}` |
+| `PGUSER` | `${{Postgres.PGUSER}}` |
+| `PGPASSWORD` | `${{Postgres.PGPASSWORD}}` |
+| `PORT` | `8080` |
+| `MEMBER_AUTH_ENABLED` | `false` |
+| `AI_GATEWAY_ENABLED` | `false` |
+
+Railway 참조 변수로 비밀값을 복사하지 않고 기존 서비스 값을 주입합니다. 프로필이 `jdbc:postgresql://PGHOST:PGPORT/PGDATABASE` URL을 구성하므로 이 프로필에서는 `DB_JDBC_URL`이 필요하지 않습니다. 사설 네트워크 접속은 Railway 컨테이너 내부에서 이루어집니다.
+
+### 빌드 및 검증
+
+- JDK 21, `backend/gradlew`의 Gradle 8.14.3 사용. Maven 설치 불필요.
+- 로컬 검증: `backend/gradlew.bat -p backend --no-daemon test bootJar` (Docker 실행 필요).
+- Railway는 저장소 루트 `Dockerfile` 및 `railway.toml`을 사용하고 `/actuator/health`로 배포 상태를 판정합니다.
+- 기존 스키마와 Entity가 불일치하면 배포는 실패하며, DB 자동 수정 대신 Entity/SQL을 수정합니다.
+- `railway ssh --service api --environment production` 등 내부 접근으로 health, 대학·입결·성적 비교·랭킹 GET 응답을 검증합니다. 서비스는 공개 도메인 없이 내부 API로 운영할 수 있습니다.
+
+### 연결 검증 중 허용 범위
+
+`railway-readonly`는 Hikari read-only 및 PostgreSQL 세션 기본 읽기 전용 모드, 15초 statement timeout, 최대 2개 연결을 적용합니다. Hibernate DDL은 `validate`, SQL 초기화는 `never`입니다. 대학·입결·랭킹 GET/HEAD 및 healthcheck만 허용합니다. 쓰기를 유발하는 VS `GET /next`를 포함한 나머지 요청은 HTTP 503 `READ_ONLY_DEPLOYMENT`로 차단됩니다.
+
+이 모드는 기존 Postgres 관리자 자격 증명을 참조하므로 **DB 권한 자체를 제한한 전용 읽기 계정과 같지는 않습니다**. 프로필을 해제하거나 JDBC 연결 옵션을 바꾸면 보호 범위가 달라집니다. 공개 쓰기 전환은 회원 보안, VS 결과 동등성, Django와의 단일 쓰기 소유권 및 롤백 검증 후 별도로 수행합니다. 기존 `web`과 도메인은 그대로 유지합니다.
+
+아래는 별도 복제 DB를 사용하던 초기 전환 가이드입니다. 현재 직접 연결 방식은 위 설정을 우선합니다.
 
 ## 목표 구성
 
