@@ -102,4 +102,17 @@ class RankingDiscoveryIntegrationTest {
             .andExpect(jsonPath("$.admissions.ranges").isEmpty());
         mvc.perform(get("/api/v1/universities/999999/overview")).andExpect(status().isNotFound());
     }
+    @Test void sitemapRetainsExistingPublicUrlsAndExcludesInactiveOrEmptyUnits() throws Exception {
+        result(a,2,30,"등급","COLLEGE_STUDENT_AVERAGE");
+        indicator(a,2026,"EMPLOYMENT_RATE",80);
+        jdbc.update("UPDATE universities SET is_active=false WHERE university_id=?",b);
+        long empty=jdbc.queryForObject("INSERT INTO recruitment_units(university_id,name,college_name,is_active) VALUES (?,'빈 학과','',true) RETURNING recruitment_unit_id",Long.class,a);
+        mvc.perform(get("/api/v1/seo/urls"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.path=='/universities/"+a+"/')]").isNotEmpty())
+            .andExpect(jsonPath("$[?(@.path=='/admissions/university/"+a+"/')]").isNotEmpty())
+            .andExpect(jsonPath("$[?(@.path=='/universities/"+b+"/')]").isEmpty())
+            .andExpect(jsonPath("$[?(@.path=='/admissions/unit/"+empty+"/')]").isEmpty())
+            .andExpect(jsonPath("$[?(@.path=='/universities/indicators/employment-rate/')]").isNotEmpty());
+    }
 }
