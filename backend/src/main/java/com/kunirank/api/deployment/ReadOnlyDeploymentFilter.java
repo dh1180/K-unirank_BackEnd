@@ -26,6 +26,7 @@ public class ReadOnlyDeploymentFilter extends OncePerRequestFilter {
         boolean queryRoute = path.matches("/api/v1/universities(?:/[0-9]+)?/?")
                 || path.matches("/api/v1/admissions/(?:results|compare|universities/[0-9]+|units/[0-9]+)/?")
                 || path.matches("/api/v1/boards/[^/]+/ranking/?")
+                || path.matches("/api/v1/rankings/(?:catalog|admissions|indicators/[a-z-]+)/?")
                 || path.equals("/actuator/health");
         if (READ_METHODS.contains(request.getMethod()) && queryRoute) {
             chain.doFilter(request, response);
