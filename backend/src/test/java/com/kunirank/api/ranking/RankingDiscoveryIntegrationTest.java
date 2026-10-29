@@ -74,4 +74,32 @@ class RankingDiscoveryIntegrationTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].value").value(3))
             .andExpect(jsonPath("$.items[0].sampleCount").value(2)).andExpect(jsonPath("$.items[1].value").value(4));
     }
+    @Test void universityOverviewUsesOwnLatestDisclosuresAndSeparatesCutUnits() throws Exception {
+        indicator(a,2025,"EMPLOYMENT_RATE",70); indicator(a,2026,"EMPLOYMENT_RATE",80);
+        indicator(a,2026,"AVG_TUITION",0); indicator(b,2026,"AVG_TUITION",3000000);
+        result(a,2,30,"등급","COLLEGE_STUDENT_AVERAGE");
+        result(a,6,10,"등급","COLLEGE_STUDENT_AVERAGE");
+        result(a,100,100,"점","COLLEGE_STUDENT_AVERAGE");
+        result(b,4,null,"등급","COLLEGE_STUDENT_AVERAGE");
+        jdbc.update("UPDATE admission_results SET admission_year=2027 WHERE university_id=?",b);
+        mvc.perform(get("/api/v1/universities/{id}/overview",a))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.indicators.length()").value(1))
+            .andExpect(jsonPath("$.indicators[0].year").value(2026))
+            .andExpect(jsonPath("$.indicators[0].value").value(80))
+            .andExpect(jsonPath("$.admissions.year").value(2026))
+            .andExpect(jsonPath("$.admissions.resultCount").value(3))
+            .andExpect(jsonPath("$.admissions.ranges.length()").value(1))
+            .andExpect(jsonPath("$.admissions.ranges[0].min").value(2))
+            .andExpect(jsonPath("$.admissions.ranges[0].max").value(6))
+            .andExpect(jsonPath("$.admissions.ranges[0].sampleCount").value(2));
+    }
+    @Test void universityOverviewHandlesMissingDataWithoutInventingZeroIndicators() throws Exception {
+        mvc.perform(get("/api/v1/universities/{id}/overview",a))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.indicators").isEmpty())
+            .andExpect(jsonPath("$.admissions.year").isEmpty())
+            .andExpect(jsonPath("$.admissions.ranges").isEmpty());
+        mvc.perform(get("/api/v1/universities/999999/overview")).andExpect(status().isNotFound());
+    }
 }
