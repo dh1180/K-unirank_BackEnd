@@ -1,0 +1,23 @@
+# Connect to the existing Railway Postgres service without copying its data.
+# Credentials are Railway reference variables, never committed values.
+spring:
+  datasource:
+    url: jdbc:postgresql://${PGHOST}:${PGPORT:5432}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 1
+      read-only: true
+      connection-init-sql: SET default_transaction_read_only = on
+      data-source-properties:
+        options: -c default_transaction_read_only=on -c statement_timeout=15000
+  sql:
+    init:
+      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+MEMBER_AUTH_ENABLED: false
+AI_GATEWAY_ENABLED: false

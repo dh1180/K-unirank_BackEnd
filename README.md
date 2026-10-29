@@ -9,7 +9,7 @@ K-unirank의 **Spring Boot REST API 전용 저장소**입니다. 이전 `K-unira
 | AI | [K-unirank_AI](https://github.com/dh1180/K-unirank_AI) | FastAPI · 입결 조회 하네스 · RAG 예정 |
 | 기존 운영 | [K-unirank_v2](https://github.com/dh1180/K-unirank_v2) | Django · Railway PostgreSQL |
 
-> **아직 개발/이전 단계입니다.** 기존 운영 Django와 PostgreSQL은 변경하지 않았으며, 이 저장소는 새로운 Railway API 서비스로 별도 배포하기 전까지 개발용 DB 복제본만 사용합니다.
+> **전환 검증 단계입니다.** Gradle Wrapper로 빌드합니다. Railway의 기존 `Postgres`를 직접 사용하는 API는 `railway-readonly` 프로필로 연결하며, 스키마 변경 및 쓰기 요청을 차단합니다. 기존 Django 서비스의 도메인과 쓰기 소유권은 유지합니다.
 
 ## 현재 구현
 
@@ -19,7 +19,15 @@ K-unirank의 **Spring Boot REST API 전용 저장소**입니다. 이전 `K-unira
 - 기존 학생부 50%/70% 컷 **둘 다 1.0인 비의치한약수 결과 제외** 정책
 - JUnit 5 · PostgreSQL Testcontainers 통합 테스트
 
-아직 **회원 인증, VS 투표 쓰기, 공식 SEO/광고 연결, 실제 Django 데이터와의 전체 결과 비교**는 미완료입니다.
+회원 인증·관심 등록·VS 투표는 개발판이 구현되어 있습니다. **공개 회원 기능의 보안 보완, 공식 SEO/광고 연결, 실제 Django 데이터와의 전체 결과 비교**는 남아 있습니다.
+
+## Railway 기존 Postgres 직접 연결
+
+새 API 서비스에 `SPRING_PROFILES_ACTIVE=railway-readonly`를 설정하고, `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`를 각각 `${{Postgres.PGHOST}}` 등의 Railway 참조 변수로 연결합니다. 별도 DB 생성이나 데이터 복사는 필요하지 않습니다.
+
+이 프로필은 Hibernate `validate`, SQL 초기화 비활성화, PostgreSQL 세션 읽기 전용 설정을 적용합니다. 대학·입결·랭킹 조회와 healthcheck만 허용하며, 세션을 생성하는 VS `GET /next`와 모든 변경 요청을 컨트롤러 실행 전에 차단합니다. 일반 개발/통합 테스트는 기존 기본 프로필과 격리 DB를 사용합니다.
+
+배포 명령, 내부 주소 및 검증 범위는 [Railway 배포 문서](docs/RAILWAY_DEPLOYMENT.md)를 참조하세요.
 
 ## 로컬 실행
 
