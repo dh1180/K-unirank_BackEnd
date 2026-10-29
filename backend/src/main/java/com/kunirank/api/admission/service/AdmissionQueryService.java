@@ -53,13 +53,15 @@ public class AdmissionQueryService {
 
     @Transactional(readOnly = true)
     public AdmissionPageResponse forUniversity(long universityId, Integer year,
+                                               String q, String phase, String track,
                                                String metricsMode, int page, int size) {
         universities.findById(universityId)
                 .filter(com.kunirank.api.university.entity.University::isActive)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "대학을 찾을 수 없습니다."));
         Specification<AdmissionResult> base = Specification.where(AdmissionResultPolicy.visible())
                 .and((root, query, cb) -> cb.equal(root.get("university").get("id"), universityId))
-                .and((root, query, cb) -> cb.isTrue(root.get("unit").get("active")));
+                .and(AdmissionResultPolicy.filtered(null, phase, track))
+                .and(AdmissionResultPolicy.searchable(q));
         if (!"all".equalsIgnoreCase(metricsMode)) {
             base = base.and(AdmissionResultPolicy.hasPublicMetric());
         }
