@@ -18,7 +18,8 @@ public class SeoController {
     public List<SitemapUrl> urls() {
         List<SitemapUrl> urls = new ArrayList<>();
         for (String path : List.of("/", "/universities/", "/rankings/", "/ranking/", "/admissions/compare/", "/admissions/ranking/")) {
-            urls.add(new SitemapUrl(path, null, "daily", path.equals("/") ? 1.0 : 0.9));
+            double priority = path.equals("/") ? 1.0 : Set.of("/rankings/", "/admissions/compare/").contains(path) ? 0.95 : 0.9;
+            urls.add(new SitemapUrl(path, null, path.equals("/universities/") ? "weekly" : "daily", priority));
         }
         urls.addAll(jdbc.query("""
             SELECT '/universities/' || university_id || '/' AS path, updated_at AS lastmod, 0.9 AS priority
