@@ -84,6 +84,18 @@ class UniversityApiIntegrationTest {
     }
 
     @Test
+    void regionsIncludesEveryActiveStoredRegionIncludingJeonnamAndGwangju() throws Exception {
+        repository.save(new University("전남 테스트 대학","전남광주특별광역시",true));
+        repository.save(new University("충북 테스트 대학","충청북도",true));
+        repository.save(new University("비활성 지역 대학","비활성 지역",false));
+        mockMvc.perform(get("/api/v1/universities/regions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@=='전남광주특별광역시')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@=='충청북도')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@=='비활성 지역')]").isEmpty());
+    }
+
+    @Test
     void rejectsInvalidPageSize() throws Exception {
         mockMvc.perform(get("/api/v1/universities").param("size", "101"))
                 .andExpect(status().isBadRequest());

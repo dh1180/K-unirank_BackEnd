@@ -25,6 +25,8 @@ public class UniversityController {
     public UniversityDetailResponse detail(@PathVariable @Min(1) Long id) {
         return universityService.findUniversity(id);
     }
+    @GetMapping("/regions")
+    public java.util.List<String> regions() { return universityService.regions(); }
 
     @GetMapping
     public UniversityPageResponse list(

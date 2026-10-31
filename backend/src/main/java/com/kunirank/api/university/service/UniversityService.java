@@ -32,6 +32,9 @@ public class UniversityService {
     }
 
     @Transactional(readOnly = true)
+    public List<String> regions() { return universityRepository.findActiveRegions(); }
+
+    @Transactional(readOnly = true)
     public UniversityDetailResponse findUniversity(Long id) {
         var university = universityRepository.findById(id)
                 .filter(University::isActive)

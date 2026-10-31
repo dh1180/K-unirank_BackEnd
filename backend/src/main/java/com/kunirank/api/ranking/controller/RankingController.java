@@ -37,7 +37,12 @@ public class RankingController {
                                        @CookieValue(name = "kunirank_vs", required = false) String session,
                                        @RequestHeader(name = "Origin", required = false) String origin,
                                        @Valid @RequestBody VsResponse.VoteRequest request) {
-        return vsService.vote(slug, session, origin, request);
+        for(int attempt=0;;attempt++) {
+            try { return vsService.vote(slug, session, origin, request); }
+            catch(org.springframework.dao.ConcurrencyFailureException ex) {
+                if(attempt>=2) throw new org.springframework.web.server.ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"투표가 몰리고 있습니다. 다시 시도해 주세요.");
+            }
+        }
     }
 
     @GetMapping({"/{slug}/ranking", "/{slug}/ranking/"})
