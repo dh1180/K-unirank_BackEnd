@@ -59,6 +59,23 @@ class RankingDiscoveryIntegrationTest {
         mvc.perform(get("/api/v1/rankings/admissions").param("phase","JEONGSI"))
             .andExpect(jsonPath("$.items[0].value").value(96)).andExpect(jsonPath("$.metric.kind").value("백분위"));
     }
+    @Test void invalidPercentilesCannotContaminateRankHoverOrOverviewAggregates() throws Exception {
+        result(a,1,100,"백분위","CSAT_PERCENTILE_MEAN_70_CUT");
+        result(a,99.99,100,"백분위","CSAT_PERCENTILE_MEAN_70_CUT");
+        result(a,90,10,"백분위","CSAT_PERCENTILE_MEAN_70_CUT");
+        result(b,92,10,"백분위","CSAT_PERCENTILE_MEAN_70_CUT");
+        jdbc.update("UPDATE admission_results SET admission_phase='JEONGSI',selection_category='수능'");
+        jdbc.update("INSERT INTO admission_aggregates(university_id,admission_year,admission_phase,selection_category,metric_code,aggregation_method,value,sample_count) VALUES (?,2026,'JEONGSI','수능','CSAT_PERCENTILE_MEAN_70_CUT','WEIGHTED_BY_RECRUITMENT',52,3),(?,2026,'JEONGSI','수능','CSAT_PERCENTILE_MEAN_70_CUT','WEIGHTED_BY_RECRUITMENT',92,1)",a,b);
+        mvc.perform(get("/api/v1/rankings/admissions").param("phase","JEONGSI"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].name").value("나대학"))
+            .andExpect(jsonPath("$.items[1].value").value(90)).andExpect(jsonPath("$.items[1].sampleCount").value(1));
+        mvc.perform(get("/api/v1/universities/{id}/admission-reference",a))
+            .andExpect(jsonPath("$.cuts[0].value70").value(90));
+        mvc.perform(get("/api/v1/universities/{id}/overview",a))
+            .andExpect(jsonPath("$.admissions.resultCount").value(1))
+            .andExpect(jsonPath("$.admissions.ranges[0].min").value(90)).andExpect(jsonPath("$.admissions.ranges[0].max").value(90));
+        org.junit.jupiter.api.Assertions.assertEquals(52,jdbc.queryForObject("SELECT value FROM admission_aggregates WHERE university_id=?",Integer.class,a));
+    }
     void result(long university,double value,Integer weight,String unit,String metric) {
         long source=jdbc.queryForObject("INSERT INTO admission_sources(university_id,admission_year,source_type,source_url,document_title,collected_at,checksum) VALUES (?,2026,'PROCOLLEGE','','',now(),'') RETURNING source_id",Long.class,university);
         long major=jdbc.queryForObject("INSERT INTO recruitment_units(university_id,name,college_name,is_active) VALUES (?,'학과','',true) RETURNING recruitment_unit_id",Long.class,university);

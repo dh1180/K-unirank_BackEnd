@@ -3,6 +3,8 @@ package com.kunirank.api.ranking.discovery;
 import com.kunirank.api.admission.entity.AdmissionMetric;
 import com.kunirank.api.admission.entity.AdmissionResult;
 import com.kunirank.api.admission.policy.AdmissionResultPolicy;
+import com.kunirank.api.admission.policy.AdmissionMetricQuality;
+import com.kunirank.api.admission.service.CleanAdmissionAggregates;
 import com.kunirank.api.admission.repository.AdmissionMetricRepository;
 import com.kunirank.api.admission.repository.AdmissionResultRepository;
 import java.math.BigDecimal;
@@ -38,9 +40,10 @@ public class RankingDiscoveryService {
     private final JdbcTemplate jdbc;
     private final AdmissionResultRepository results;
     private final AdmissionMetricRepository metrics;
+    private final CleanAdmissionAggregates aggregates;
 
-    public RankingDiscoveryService(JdbcTemplate jdbc, AdmissionResultRepository results, AdmissionMetricRepository metrics) {
-        this.jdbc=jdbc; this.results=results; this.metrics=metrics;
+    public RankingDiscoveryService(JdbcTemplate jdbc, AdmissionResultRepository results, AdmissionMetricRepository metrics,CleanAdmissionAggregates aggregates) {
+        this.jdbc=jdbc; this.results=results; this.metrics=metrics;this.aggregates=aggregates;
     }
     public List<Card> catalog() {
         return INDICATORS.stream().map(spec -> {
@@ -88,13 +91,13 @@ public class RankingDiscoveryService {
         Integer chosen=selected(year,years);
         List<Row> rows=new ArrayList<>();
         if(chosen!=null && !college) {
-            rows=jdbc.query("""
-                SELECT u.university_id,u.name,u.logo_path,u.region,a.value,a.sample_count,a.admission_year
-                FROM admission_aggregates a JOIN universities u ON u.university_id=a.university_id
-                WHERE a.admission_year=? AND a.admission_phase=? AND a.selection_category=? AND a.metric_code=?
-                """ + " ORDER BY a.value " + (susi?"ASC":"DESC") + ",u.name",(rs,n)->new Row(0,rs.getLong("university_id"),rs.getString("name"),rs.getString("logo_path"),
-                    rs.getString("region"),rs.getBigDecimal("value"),rs.getInt("sample_count"),"",rs.getInt("admission_year")),
-                chosen,phase,susi?"학생부교과":"수능",code);
+            Map<Long,CleanAdmissionAggregates.Aggregate> clean=new HashMap<>();
+            aggregates.load(chosen,null,phase,susi?"학생부교과":"수능",code).forEach(a->clean.put(a.key().universityId(),a));
+            final int selectedYear=chosen;
+            rows=jdbc.query("SELECT university_id,name,logo_path,region FROM universities WHERE is_active ORDER BY name",(rs,n)-> {
+                var a=clean.get(rs.getLong(1));
+                return a==null?null:new Row(0,rs.getLong(1),rs.getString(2),rs.getString(3),rs.getString(4),a.value(),a.sampleCount(),"",selectedYear);
+            }).stream().filter(Objects::nonNull).toList();
         } else if(chosen!=null) {
             // Reuse the existing invalid-double-one and active/source filters before aggregation.
             List<AdmissionResult> eligible=results.findAll(AdmissionResultPolicy.visible()
@@ -104,7 +107,7 @@ public class RankingDiscoveryService {
             Map<Long,List<AdmissionMetric>> groups=new HashMap<>();
             if(!byId.isEmpty()) for(var metric:metrics.findByResultIdInOrderByResultIdAscMetricCodeAsc(byId.keySet())) {
                 boolean validUnit=unit.equals(metric.getUnit()) || (!susi && (metric.getUnit()==null||metric.getUnit().isEmpty()) && metric.getValue().compareTo(BigDecimal.valueOf(9))>0 && metric.getValue().compareTo(BigDecimal.valueOf(100))<=0);
-                if(code.equals(metric.getMetricCode()) && validUnit) groups.computeIfAbsent(metric.getResult().getUniversity().getId(),ignored->new ArrayList<>()).add(metric);
+                if(code.equals(metric.getMetricCode()) && validUnit && AdmissionMetricQuality.valid(metric)) groups.computeIfAbsent(metric.getResult().getUniversity().getId(),ignored->new ArrayList<>()).add(metric);
             }
             for(var group:groups.values()) {
                 var weighted=group.stream().filter(m->m.getResult().getRecruitmentCount()!=null && m.getResult().getRecruitmentCount()>0).toList();

@@ -3,6 +3,7 @@ package com.kunirank.api.admission.service;
 import com.kunirank.api.admission.dto.*;
 import com.kunirank.api.admission.entity.*;
 import com.kunirank.api.admission.policy.AdmissionResultPolicy;
+import com.kunirank.api.admission.policy.AdmissionMetricQuality;
 import com.kunirank.api.admission.repository.*;
 import com.kunirank.api.university.repository.UniversityRepository;
 import java.util.*;
@@ -94,7 +95,7 @@ public class AdmissionQueryService {
             byResult = metrics.findByResultIdInOrderByResultIdAscMetricCodeAsc(
                     content.stream().map(AdmissionResult::getId).toList()
             ).stream()
-              .filter(metric -> !metric.getMetricCode().toUpperCase(Locale.ROOT).contains("REFERENCE_MEAN"))
+              .filter(AdmissionMetricQuality::valid)
               .collect(Collectors.groupingBy(
                       metric -> metric.getResult().getId(),
                       Collectors.mapping(AdmissionMetricResponse::from, Collectors.toList())

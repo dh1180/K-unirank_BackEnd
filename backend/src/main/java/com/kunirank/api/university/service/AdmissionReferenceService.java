@@ -2,6 +2,7 @@ package com.kunirank.api.university.service;
 
 import com.kunirank.api.admission.policy.AdmissionResultPolicy;
 import com.kunirank.api.admission.repository.AdmissionResultRepository;
+import com.kunirank.api.admission.service.CleanAdmissionAggregates;
 import com.kunirank.api.university.repository.UniversityRepository;
 import java.math.BigDecimal;
 import java.util.*;
@@ -22,9 +23,9 @@ public class AdmissionReferenceService {
     private record Aggregate(String phase,String category,String code,BigDecimal value) {}
     private final UniversityRepository universities;
     private final AdmissionResultRepository results;
-    private final JdbcTemplate jdbc;
-    public AdmissionReferenceService(UniversityRepository universities,AdmissionResultRepository results,JdbcTemplate jdbc) {
-        this.universities=universities;this.results=results;this.jdbc=jdbc;
+    private final CleanAdmissionAggregates aggregates;
+    public AdmissionReferenceService(UniversityRepository universities,AdmissionResultRepository results,CleanAdmissionAggregates aggregates) {
+        this.universities=universities;this.results=results;this.aggregates=aggregates;
     }
     public Reference reference(long id) {
         universities.findById(id).filter(u->u.isActive()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -32,11 +33,7 @@ public class AdmissionReferenceService {
             PageRequest.of(0,1,Sort.by(Sort.Direction.DESC,"admissionYear").and(Sort.by("id"))));
         if(latest.isEmpty()) return new Reference(null,List.of());
         int year=latest.getContent().getFirst().getAdmissionYear();
-        var rows=jdbc.query("""
-            SELECT admission_phase,selection_category,metric_code,value
-            FROM admission_aggregates WHERE university_id=? AND admission_year=?
-            ORDER BY CASE WHEN aggregation_method='WEIGHTED_BY_RECRUITMENT' THEN 0 ELSE 1 END,aggregate_id
-            """,(rs,n)->new Aggregate(rs.getString(1),rs.getString(2),rs.getString(3),rs.getBigDecimal(4)),id,year);
+        var rows=aggregates.load(year,id,null,null,null).stream().map(a->new Aggregate(a.key().phase(),a.key().category(),a.key().code(),a.value())).toList();
         List<Cut> cuts=new ArrayList<>();
         add(cuts,rows,"SUSI","학생부교과","STUDENT_GRADE","교과 등급","등급","CONVERTED_SCORE","교과 환산","점");
         add(cuts,rows,"JEONGSI","수능","CSAT_PERCENTILE_MEAN","수능 평백","백분위","CSAT_CONVERTED_SCORE","수능 환산","점");

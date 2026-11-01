@@ -66,6 +66,27 @@ class AdmissionApiIntegrationTest {
         return item;
     }
 
+    @Test void quarantinesSuspiciousMetricsInPublicFilterAndAllModeWithoutDeletingSources() throws Exception {
+        var sentinel=add("의심평백", "수능", "일반",null,null);
+        metrics.save(new AdmissionMetric(sentinel,"CSAT_PERCENTILE_MEAN_70_CUT",new BigDecimal("99.99"),"백분위"));
+        var low=add("반복평백", "수능", "일반",null,null);
+        metrics.save(new AdmissionMetric(low,"CSAT_PERCENTILE_MEAN_70_CUT",BigDecimal.ONE,"백분위"));
+        add("등급오류", "학생부교과", "일반","10","99.99");
+        var normal=add("정상자료", "수능", "일반","3.00",null);
+        metrics.save(new AdmissionMetric(normal,"CSAT_PERCENTILE_MEAN_70_CUT",new BigDecimal("99.99"),"백분위"));
+        metrics.save(new AdmissionMetric(normal,"CSAT_KOREAN_PERCENTILE_70_CUT",new BigDecimal("100"),"백분위"));
+        mvc.perform(get("/api/v1/admissions/results").param("year","2026"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(1))
+            .andExpect(jsonPath("$.items[0].metrics.length()").value(2))
+            .andExpect(jsonPath("$.items[0].metrics[0].code").value("CSAT_KOREAN_PERCENTILE_70_CUT"))
+            .andExpect(jsonPath("$.items[0].metrics[0].value").value(100));
+        mvc.perform(get("/api/v1/admissions/results").param("year","2026").param("metrics","all"))
+            .andExpect(jsonPath("$.totalCount").value(4))
+            .andExpect(jsonPath("$.items[*].metrics[?(@.code=='CSAT_PERCENTILE_MEAN_70_CUT')]").isEmpty());
+        org.junit.jupiter.api.Assertions.assertEquals(4,results.count());
+        org.junit.jupiter.api.Assertions.assertEquals(7,metrics.count());
+    }
+
     @Test
     void excludesOnlyExactDoubleOneCutForNonProfessionalMajors() throws Exception {
         add("정제대상학과", "학생부교과", "일반", "1.00", "1.0");

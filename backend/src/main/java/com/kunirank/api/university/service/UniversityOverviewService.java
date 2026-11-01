@@ -3,6 +3,7 @@ package com.kunirank.api.university.service;
 import com.kunirank.api.admission.entity.AdmissionMetric;
 import com.kunirank.api.admission.entity.AdmissionResult;
 import com.kunirank.api.admission.policy.AdmissionResultPolicy;
+import com.kunirank.api.admission.policy.AdmissionMetricQuality;
 import com.kunirank.api.admission.repository.AdmissionMetricRepository;
 import com.kunirank.api.admission.repository.AdmissionResultRepository;
 import com.kunirank.api.ranking.discovery.RankingDiscoveryService;
@@ -73,7 +74,7 @@ public class UniversityOverviewService {
         Map<String, List<AdmissionMetric>> grouped = new TreeMap<>();
         for (var metric : metrics.findByResultIdInOrderByResultIdAscMetricCodeAsc(
                 published.stream().map(AdmissionResult::getId).toList())) {
-            if (!isComparableCut(metric)) continue;
+            if (!AdmissionMetricQuality.valid(metric) || !isComparableCut(metric)) continue;
             var r = metric.getResult();
             String key = r.getPhase() + "\u001f" + r.getSelectionCategory() + "\u001f" + metric.getMetricCode();
             grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(metric);
@@ -91,11 +92,11 @@ public class UniversityOverviewService {
 
     private boolean isComparableCut(AdmissionMetric m) {
         String code = m.getMetricCode(); BigDecimal value = m.getValue();
-        if (Set.of("STUDENT_GRADE_70_CUT", "COLLEGE_STUDENT_AVERAGE").contains(code)) {
+        if (Set.of("STUDENT_GRADE_50_CUT", "STUDENT_GRADE_70_CUT", "COLLEGE_STUDENT_AVERAGE").contains(code)) {
             return "등급".equals(m.getUnit()) && value.compareTo(BigDecimal.ONE)>=0
                     && value.compareTo(BigDecimal.valueOf(9))<=0;
         }
-        if (Set.of("CSAT_PERCENTILE_MEAN_70_CUT", "COLLEGE_CSAT_AVERAGE").contains(code)) {
+        if (Set.of("CSAT_PERCENTILE_MEAN_50_CUT", "CSAT_PERCENTILE_MEAN_70_CUT", "COLLEGE_CSAT_AVERAGE").contains(code)) {
             return "백분위".equals(m.getUnit()) && value.signum()>0
                     && value.compareTo(BigDecimal.valueOf(100))<=0;
         }
