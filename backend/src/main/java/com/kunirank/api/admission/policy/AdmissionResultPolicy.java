@@ -24,6 +24,7 @@ public final class AdmissionResultPolicy {
             "약학", "제약학과", "제약학부",
             "수의예", "수의학", "수의과대학"
     };
+    public static List<String> protectedMajorMarkers() {return List.of(PROTECTED);}
 
     public static Specification<AdmissionResult> visible() {
         return (root, query, cb) -> {
@@ -49,7 +50,7 @@ public final class AdmissionResultPolicy {
             Root<AdmissionMetric> m = exists.from(AdmissionMetric.class);
             exists.select(m.get("id")).where(
                     cb.equal(m.get("result").get("id"), root.get("id")),
-                    cb.notLike(cb.upper(m.get("metricCode")), "%REFERENCE_MEAN%")
+                    AdmissionMetricQuality.predicate(m,cb)
             );
             return cb.exists(exists);
         };
