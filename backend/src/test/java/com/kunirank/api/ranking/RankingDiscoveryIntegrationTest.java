@@ -65,6 +65,19 @@ class RankingDiscoveryIntegrationTest {
         long result=jdbc.queryForObject("INSERT INTO admission_results(university_id,source_id,recruitment_unit_id,admission_year,admission_phase,selection_category,selection_name,recruitment_group,recruitment_count) VALUES (?,?,?,2026,'SUSI','학생부교과','일반전형','',?) RETURNING result_id",Long.class,university,source,major,weight);
         jdbc.update("INSERT INTO admission_metrics(result_id,metric_code,value,unit) VALUES (?,?,?,?)",result,metric,value,unit);
     }
+    @Test void voteReferenceUsesWeightedSameYearCutsAndScoreFallbackWithoutMixingUnits() throws Exception {
+        result(a,3,30,"등급","STUDENT_GRADE_70_CUT");
+        jdbc.update("INSERT INTO admission_aggregates(university_id,admission_year,admission_phase,selection_category,metric_code,aggregation_method,value) VALUES (?,2026,'SUSI','학생부교과','STUDENT_GRADE_70_CUT','SIMPLE_AVERAGE',4),(?,2026,'SUSI','학생부교과','STUDENT_GRADE_70_CUT','WEIGHTED_BY_RECRUITMENT',3),(?,2026,'SUSI','학생부교과','CONVERTED_SCORE_50_CUT','SIMPLE_AVERAGE',900),(?,2026,'JEONGSI','수능','CSAT_CONVERTED_SCORE_50_CUT','SIMPLE_AVERAGE',650),(?,2025,'SUSI','학생부교과','STUDENT_GRADE_50_CUT','SIMPLE_AVERAGE',2)",a,a,a,a,a);
+        mvc.perform(get("/api/v1/universities/{id}/admission-reference",a)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.year").value(2026)).andExpect(jsonPath("$.cuts.length()").value(2))
+            .andExpect(jsonPath("$.cuts[0].label").value("교과 등급"))
+            .andExpect(jsonPath("$.cuts[0].value50").isEmpty()).andExpect(jsonPath("$.cuts[0].value70").value(3))
+            .andExpect(jsonPath("$.cuts[1].label").value("수능 환산"))
+            .andExpect(jsonPath("$.cuts[1].unit").value("점")).andExpect(jsonPath("$.cuts[1].value50").value(650));
+        mvc.perform(get("/api/v1/universities/{id}/admission-reference",b)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.year").isEmpty()).andExpect(jsonPath("$.cuts").isEmpty());
+        mvc.perform(get("/api/v1/universities/999999/admission-reference")).andExpect(status().isNotFound());
+    }
     @Test void collegeRankingUsesRecruitmentWeightsAndDoesNotMixUnits() throws Exception {
         result(a,2,30,"등급","COLLEGE_STUDENT_AVERAGE");
         result(a,6,10,"등급","COLLEGE_STUDENT_AVERAGE");

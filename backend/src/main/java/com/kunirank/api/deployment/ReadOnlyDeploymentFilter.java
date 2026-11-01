@@ -26,6 +26,7 @@ public class ReadOnlyDeploymentFilter extends OncePerRequestFilter {
         boolean queryRoute = path.matches("/api/v1/universities(?:/[0-9]+)?/?")
                 || path.matches("/api/v1/universities/regions/?")
                 || path.matches("/api/v1/universities/[0-9]+/overview/?")
+                || path.matches("/api/v1/universities/[0-9]+/admission-reference/?")
                 || path.matches("/api/v1/seo/urls/?")
                 || path.matches("/api/v1/admissions/(?:results|compare|universities/[0-9]+|units/[0-9]+)/?")
                 || path.matches("/api/v1/boards/[^/]+/ranking/?")
