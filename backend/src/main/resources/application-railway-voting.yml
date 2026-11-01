@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${PGHOST}:${PGPORT:5432}/${PGDATABASE}
+    username: ${VS_DB_USER}
+    password: ${VS_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-init-sql: SET statement_timeout = 15000
+  sql:
+    init:
+      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: validate
+MEMBER_AUTH_ENABLED: false
+AI_GATEWAY_ENABLED: false

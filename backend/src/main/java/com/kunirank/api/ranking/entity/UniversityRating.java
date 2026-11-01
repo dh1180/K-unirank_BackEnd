@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.time.Instant;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @Table(name = "university_ratings")
 public class UniversityRating {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

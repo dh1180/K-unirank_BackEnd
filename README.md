@@ -76,3 +76,18 @@ GET /actuator/health
 [Contextory_BackEnd PR #10](https://github.com/kau-likelion-14th-hackathon/Contextory_BackEnd/pull/10) 형식을 준수합니다. `feat:`/ `fix:` 커밋, `[Feat]`/ `[Fix]` PR 제목, PR 타입 → 반영 브랜치 → 변경 사항 → 테스트 → 참고 사항.
 
 [전환 계획](docs/MIGRATION_PLAN.md) 참고.
+
+## 비공개 Spring 투표 서비스
+
+조회 서비스는 `railway-readonly`, 투표 전용 서비스는 `railway-voting` 프로필로 분리합니다. 투표 서비스에는 공개 도메인을 만들지 않으며 `GET /api/v1/boards/overall/next`, `POST /api/v1/boards/overall/vote`만 허용합니다.
+
+- `VS_DB_USER`, `VS_DB_PASSWORD`: 기존 DB에 만든 투표 전용 역할. 대학·보드·투표·평점 SELECT, 투표 세션/기록/평점 INSERT, 세션 횟수 및 평점 관련 컬럼 UPDATE, ID 시퀀스 USAGE만 부여합니다. 대학 정보 UPDATE, DELETE, DDL은 허용하지 않습니다.
+- `VS_FRONTEND_TOKEN`: Next BFF와 공유하는 32자 이상 비밀값입니다.
+- `VS_SIGNING_SECRET`: 5분 대진 서명용 32자 이상 비밀값입니다.
+- `VS_ALLOWED_ORIGIN`: 허용하는 프런트 도메인의 Origin을 쉼표로 구분합니다.
+- `VS_COOKIE_SECURE=true`: HttpOnly, Secure, SameSite=Lax 쿠키를 사용합니다.
+- 프런트에는 `VS_API_INTERNAL_URL`, 같은 `VS_FRONTEND_TOKEN`, `VS_FRONTEND_ENABLED=true`를 설정합니다. 브라우저에는 비밀값이나 사설 주소를 전달하지 않습니다.
+
+기존 투표와 평점을 초기화하지 않습니다. 평점 갱신은 행 잠금과 교착 재시도로 기존 Django 투표 처리와 조정합니다. `VotingProfileIntegrationTest`는 실제 스키마 형태와 제한된 DB 역할로 투표 저장 및 금지된 쓰기 거부를 검증합니다.
+
+대학 지역 필터는 `GET /api/v1/universities/regions`의 실제 활성 대학 지역 전체를 사용합니다.

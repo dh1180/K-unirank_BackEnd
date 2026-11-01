@@ -14,6 +14,9 @@ public interface UniversityRatingRepository extends JpaRepository<UniversityRati
     List<UniversityRating> findForBoard(@Param("board") Long board);
 
     Optional<UniversityRating> findByBoardIdAndUniversityId(Long boardId, Long universityId);
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from UniversityRating r where r.board.id=:board and r.university.id=:university")
+    Optional<UniversityRating> findForVote(@Param("board") Long board,@Param("university") Long university);
 
     @Query("""
        select rating from UniversityRating rating

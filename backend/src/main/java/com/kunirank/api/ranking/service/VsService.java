@@ -46,7 +46,7 @@ public class VsService {
         this.ratings = ratings;
         this.sessions = sessions;
         this.votes = votes;
-        this.signingKey = signingKey;
+        this.signingKey = signingKey.strip();
         this.allowedOrigin = allowedOrigin;
         this.secureCookie = secureCookie;
     }
@@ -163,17 +163,21 @@ public class VsService {
             if (i < 60) pairs.add(Math.min(a, b) + ":" + Math.max(a, b));
         }
         List<Candidate> sorted = new ArrayList<>(candidates);
+        Map<Long,Double> jitter=new HashMap<>();
+        candidates.forEach(c->jitter.put(c.university.getId(),RANDOM.nextDouble()*28));
         sorted.sort(Comparator.comparingDouble(c -> {
             int last = age.getOrDefault(c.university.getId(), 100);
             double cooldown = last < 4 ? 10000 : last < 10 ? 900 : 0;
             return cooldown + Math.min(c.matches, 60) * 7 - Math.min(c.rd, 350) * 0.28
                     - (c.matches == 0 ? 180 : Math.max(0, 8 - c.matches) * 12)
-                    + RANDOM.nextDouble() * 28;
+                    + jitter.get(c.university.getId());
         }));
         Candidate first = sorted.get(RANDOM.nextInt(Math.min(14, sorted.size())));
         double roll = RANDOM.nextDouble();
         List<Candidate> opponents = new ArrayList<>(candidates);
         opponents.removeIf(c -> c.university.getId().equals(first.university.getId()));
+        Map<Long,Double> opponentJitter=new HashMap<>();
+        opponents.forEach(c->opponentJitter.put(c.university.getId(),RANDOM.nextDouble()*20));
         opponents.sort(Comparator.comparingDouble(c -> {
             long a = first.university.getId(), b = c.university.getId();
             int last = age.getOrDefault(b, 100);
@@ -187,7 +191,7 @@ public class VsService {
                     + Math.max(0, rankGap - 15) * 65
                     : gap * .18 + rankGap * 1.5 - Math.min(c.rd,350) * .35
                     - Math.max(0, 12 - c.matches) * 10;
-            return repeat + cooldown + mode + RANDOM.nextDouble() * 20;
+            return repeat + cooldown + mode + opponentJitter.get(c.university.getId());
         }));
         Candidate second = opponents.get(RANDOM.nextInt(Math.min(5, opponents.size())));
         List<University> pair = new ArrayList<>(List.of(first.university, second.university));
@@ -202,7 +206,7 @@ public class VsService {
     @Transactional
     public VsResponse.VoteReceipt vote(String slug, String cookie, String origin, VsResponse.VoteRequest req) {
         enabled();
-        if (origin != null && !origin.isBlank() && !origin.equals(allowedOrigin)) {
+        if (origin != null && !origin.isBlank() && !Arrays.asList(allowedOrigin.split(",")).contains(origin)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "허용되지 않은 사이트입니다.");
         }
         // Serialize all rating updates on this board, including first-time rating creation.
@@ -226,10 +230,13 @@ public class VsService {
         ComparisonVote vote = votes.saveAndFlush(new ComparisonVote(board, session, a, b, selected, req.skipped()));
         session.increment();
         if (!req.skipped()) {
-            UniversityRating ratingA = ratings.findByBoardIdAndUniversityId(board.getId(), a.getId())
-                    .orElseGet(() -> ratings.saveAndFlush(new UniversityRating(board, a)));
-            UniversityRating ratingB = ratings.findByBoardIdAndUniversityId(board.getId(), b.getId())
-                    .orElseGet(() -> ratings.saveAndFlush(new UniversityRating(board, b)));
+            // Coordinate with Django's row locks as well as other Spring voters.
+            University low=a.getId()<b.getId()?a:b,high=low==a?b:a;
+            UniversityRating lowRating=ratings.findForVote(board.getId(),low.getId())
+                    .orElseGet(()->ratings.saveAndFlush(new UniversityRating(board,low)));
+            UniversityRating highRating=ratings.findForVote(board.getId(),high.getId())
+                    .orElseGet(()->ratings.saveAndFlush(new UniversityRating(board,high)));
+            UniversityRating ratingA=low==a?lowRating:highRating,ratingB=low==a?highRating:lowRating;
             double weight = previous == 0 ? 1 : previous == 1 ? .35 : 0;
             if (weight > 0) {
                 Glicko2.State beforeA = Glicko2.effective(new Glicko2.State(ratingA.getRating(),

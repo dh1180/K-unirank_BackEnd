@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @Table(name = "vote_sessions")
 public class VoteSession {
     @Id

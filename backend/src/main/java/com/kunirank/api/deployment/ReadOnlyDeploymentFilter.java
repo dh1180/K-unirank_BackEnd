@@ -24,6 +24,7 @@ public class ReadOnlyDeploymentFilter extends OncePerRequestFilter {
                                   FilterChain chain) throws ServletException, IOException {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         boolean queryRoute = path.matches("/api/v1/universities(?:/[0-9]+)?/?")
+                || path.matches("/api/v1/universities/regions/?")
                 || path.matches("/api/v1/universities/[0-9]+/overview/?")
                 || path.matches("/api/v1/seo/urls/?")
                 || path.matches("/api/v1/admissions/(?:results|compare|universities/[0-9]+|units/[0-9]+)/?")
