@@ -77,7 +77,7 @@ public class GradeComparisonService {
         if (!VALID_REGIONS.containsAll(regions))
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.BAD_REQUEST, "지역 조건을 확인해 주세요.");
-        List<String> universities = csv(rawUniversity, 3, 160);
+        List<String> universities = csv(rawUniversity, 10, 160);
         List<String> terms = rawQuery == null ? List.of()
                 : Arrays.stream(rawQuery.strip().split(","))
                     .map(String::strip).filter(t -> !t.isEmpty()).limit(5).toList();

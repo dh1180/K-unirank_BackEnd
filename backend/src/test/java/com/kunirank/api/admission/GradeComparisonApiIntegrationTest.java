@@ -163,6 +163,9 @@ class GradeComparisonApiIntegrationTest {
                         .param("region", "경기,서울").param("university", "새빛대학교"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(1));
         mvc.perform(get("/api/v1/admissions/compare").param("grade", "3.1")
+                        .param("university", "건국대학교,동국대학교,홍익대학교,새빛대학교"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(1));
+        mvc.perform(get("/api/v1/admissions/compare").param("grade", "3.1")
                         .param("region", "경기,인천"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(0));
         mvc.perform(get("/api/v1/admissions/compare").param("grade", "3.1")

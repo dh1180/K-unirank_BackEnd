@@ -140,7 +140,7 @@ public class AiQuestionService {
             if (region != null && !region.isBlank() && !validRegions.containsAll(Arrays.asList(region.split(",", -1))))
                 throw new IllegalArgumentException();
             if (major != null && major.split(",", -1).length > 5
-                    || university != null && (university.length() > 160 || university.split(",", -1).length > 3))
+                    || university != null && (university.length() > 160 || university.split(",", -1).length > 10))
                 throw new IllegalArgumentException();
             List<String> notes = new ArrayList<>();
             if (root.has("notes")) {
