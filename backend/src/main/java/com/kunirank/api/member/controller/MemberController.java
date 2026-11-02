@@ -25,7 +25,7 @@ public class MemberController {
     }
 
     public record Credentials(@NotBlank @Size(max = 150) String username,
-                              @NotBlank String password) {}
+                              @NotBlank @Size(max = 256) String password) {}
 
     private ResponseCookie cookie(String value, Duration age) {
         return ResponseCookie.from("kunirank_member", value)
@@ -49,8 +49,9 @@ public class MemberController {
     }
 
     @PostMapping("/logout")
-    public void logout(HttpServletResponse response) {
-        sessions.requireEnabled();
+    public void logout(@CookieValue(name = "kunirank_member", required = false) String session,
+                       HttpServletResponse response) {
+        sessions.logout(session);
         response.addHeader(HttpHeaders.SET_COOKIE, cookie("", Duration.ZERO).toString());
     }
 }
