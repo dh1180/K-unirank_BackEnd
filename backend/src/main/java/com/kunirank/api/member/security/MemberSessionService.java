@@ -8,9 +8,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Locale;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,7 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Disabled by default. Stateless one-hour HMAC session, bound to Django's password hash. */
+/** One-hour signed session, bound to the password hash and a revocable server record. */
 @Service
 public class MemberSessionService {
     private static final Base64.Encoder ENCODER = Base64.getUrlEncoder().withoutPadding();
@@ -30,14 +28,14 @@ public class MemberSessionService {
     private final DjangoPasswordVerifier passwords;
     private final String secret;
     private final boolean enabled;
-    private final ConcurrentHashMap<String, Window> attempts = new ConcurrentHashMap<>();
-    private record Window(long until, int count) {}
+    private final MemberSecurityStore store;
 
-    public MemberSessionService(DjangoMemberRepository members, DjangoPasswordVerifier passwords,
+    public MemberSessionService(DjangoMemberRepository members, DjangoPasswordVerifier passwords, MemberSecurityStore store,
                                 @Value("${MEMBER_AUTH_SECRET:}") String secret,
                                 @Value("${MEMBER_AUTH_ENABLED:false}") boolean enabled) {
         this.members = members;
         this.passwords = passwords;
+        this.store = store;
         this.secret = secret;
         this.enabled = enabled;
     }
@@ -49,13 +47,7 @@ public class MemberSessionService {
     }
 
     private boolean allowed(String username) {
-        long now = Instant.now().getEpochSecond();
-        // In-process defense-in-depth, not a substitute for edge rate limiting.
-        if (attempts.size() > 10000) attempts.clear();
-        Window window = attempts.compute(username.toLowerCase(Locale.ROOT), (key, old) ->
-                old == null || old.until < now ? new Window(now + 600, 1)
-                        : new Window(old.until, old.count + 1));
-        return window.count <= 5;
+        return store.attempt("login:" + username.toLowerCase(java.util.Locale.ROOT), 5, 600);
     }
 
     public record Login(MemberAccount.PublicProfile profile, String token) {}
@@ -84,6 +76,7 @@ public class MemberSessionService {
                 + passwordTag(member.passwordHash()) + ":" + ENCODER.encodeToString(nonce);
         String signed = ENCODER.encodeToString(data.getBytes(StandardCharsets.UTF_8))
                 + "." + ENCODER.encodeToString(sign(data));
+        store.create(signed, member.id(), expiry);
         return new Login(member.publicProfile(), signed);
     }
 
@@ -107,11 +100,20 @@ public class MemberSessionService {
                     .orElseThrow(this::unauthorizedException);
             if (!MessageDigest.isEqual(fields[3].getBytes(StandardCharsets.US_ASCII),
                     passwordTag(member.passwordHash()).getBytes(StandardCharsets.US_ASCII))) unauthorized();
+            if (!store.valid(token, id)) unauthorized();
             return member;
         } catch (IllegalArgumentException ex) {
             unauthorized();
             throw ex;
         }
+    }
+
+    public void logout(String token) { requireEnabled(); store.revoke(token); }
+
+    public MemberAccount requireAdmin(String token) {
+        MemberAccount member = requireMember(token);
+        if (!member.admin()) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "관리자 권한이 필요합니다.");
+        return member;
     }
 
     private String passwordTag(String hash) {

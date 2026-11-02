@@ -57,7 +57,9 @@ class MemberApiIntegrationTest {
               id BIGSERIAL PRIMARY KEY,
               username VARCHAR(150) NOT NULL UNIQUE,
               password VARCHAR(128) NOT NULL,
-              is_active BOOLEAN NOT NULL DEFAULT TRUE
+              is_active BOOLEAN NOT NULL DEFAULT TRUE,
+              is_staff BOOLEAN NOT NULL DEFAULT FALSE,
+              is_superuser BOOLEAN NOT NULL DEFAULT FALSE
             )
             """);
         jdbc.execute("""
@@ -78,6 +80,11 @@ class MemberApiIntegrationTest {
               UNIQUE(user_id, recruitment_unit_id)
             )
             """);
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource("db/member-security.sql"))
+                .execute(java.util.Objects.requireNonNull(jdbc.getDataSource()));
+        jdbc.update("DELETE FROM kunirank_member_sessions");
+        jdbc.update("DELETE FROM kunirank_member_limits");
         jdbc.update("DELETE FROM favorite_recruitment_units");
         jdbc.update("DELETE FROM favorite_universities");
         jdbc.update("DELETE FROM auth_user");
@@ -189,5 +196,44 @@ class MemberApiIntegrationTest {
                 .andExpect(status().isOk()).andReturn().getResponse();
         assertNotNull(response.getHeader("Set-Cookie"));
         assertTrue(response.getHeader("Set-Cookie").contains("Max-Age=0"));
+        mvc.perform(get("/api/v1/member/me").cookie(cookie)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminChecksCurrentRoleAndNeverTrustsAnExistingCookieForPermissions() throws Exception {
+        mvc.perform(get("/api/v1/admin/overview")).andExpect(status().isUnauthorized());
+        Cookie cookie=login();
+        mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isForbidden());
+        jdbc.update("UPDATE auth_user SET is_staff=true WHERE username=?",username);
+        mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.operator").value(username))
+                .andExpect(jsonPath("$.stats[0].value").value(1));
+        jdbc.update("UPDATE auth_user SET is_staff=false WHERE username=?",username);
+        mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isForbidden());
+        jdbc.update("UPDATE auth_user SET is_superuser=true WHERE username=?",username);
+        mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isOk());
+        jdbc.update("UPDATE auth_user SET is_active=false WHERE username=?",username);
+        mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void tamperedAndRevokedSessionsCannotReadFavorites() throws Exception {
+        Cookie cookie=login();
+        mvc.perform(get("/api/v1/member/me").cookie(new Cookie("kunirank_member",cookie.getValue()+"x")))
+                .andExpect(status().isUnauthorized());
+        assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM kunirank_member_sessions",Integer.class));
+        assertNotEquals(cookie.getValue(),jdbc.queryForObject("SELECT token_hash FROM kunirank_member_sessions",String.class));
+        jdbc.update("DELETE FROM kunirank_member_sessions");
+        mvc.perform(get("/api/v1/member/favorites/universities").cookie(cookie)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void repeatedPasswordAttemptsAreLimitedInTheSharedStore() throws Exception {
+        for(int i=0;i<5;i++) mvc.perform(post("/api/v1/member/login").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("username",username,"password","wrong"))))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/member/login").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("username",username,"password","테스트Password!2026"))))
+                .andExpect(status().isTooManyRequests());
     }
 }

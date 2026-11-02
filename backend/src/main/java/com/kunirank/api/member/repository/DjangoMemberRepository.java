@@ -18,16 +18,16 @@ public class DjangoMemberRepository {
 
     public Optional<MemberAccount> byUsername(String username) {
         return first(jdbc.query(
-                "SELECT id, username, password, is_active FROM auth_user WHERE username = ?",
+                "SELECT id, username, password, is_active, is_staff, is_superuser FROM auth_user WHERE username = ?",
                 (rs, n) -> new MemberAccount(rs.getLong("id"), rs.getString("username"),
-                        rs.getString("password"), rs.getBoolean("is_active")), username));
+                        rs.getString("password"), rs.getBoolean("is_active"), rs.getBoolean("is_staff"), rs.getBoolean("is_superuser")), username));
     }
 
     public Optional<MemberAccount> byId(long id) {
         return first(jdbc.query(
-                "SELECT id, username, password, is_active FROM auth_user WHERE id = ?",
+                "SELECT id, username, password, is_active, is_staff, is_superuser FROM auth_user WHERE id = ?",
                 (rs, n) -> new MemberAccount(rs.getLong("id"), rs.getString("username"),
-                        rs.getString("password"), rs.getBoolean("is_active")), id));
+                        rs.getString("password"), rs.getBoolean("is_active"), rs.getBoolean("is_staff"), rs.getBoolean("is_superuser")), id));
     }
 
     private static <T> Optional<T> first(List<T> result) {
