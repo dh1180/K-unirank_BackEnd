@@ -19,8 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Spring owns PostgreSQL reads. The Raspberry Pi only parses filters over
- * authenticated HTTPS; it never needs inbound access to Railway private DB.
+ * Spring owns PostgreSQL reads. The private Railway AI service only parses filters.
  */
 @Service
 public class AiQuestionService {
@@ -56,9 +55,12 @@ public class AiQuestionService {
         URI target;
         try {
             target = URI.create(parserUrl);
-            if (!"https".equals(target.getScheme()) || target.getHost() == null
+            boolean privateRailway = "http".equals(target.getScheme())
+                    && "ai.railway.internal".equals(target.getHost()) && target.getPort() == 8000;
+            if (!("https".equals(target.getScheme()) || privateRailway) || target.getHost() == null
                     || !target.getPath().equals("/api/v1/ai/parse")
-                    || target.getRawUserInfo() != null) throw new IllegalArgumentException();
+                    || target.getRawUserInfo() != null || target.getRawQuery() != null
+                    || target.getRawFragment() != null) throw new IllegalArgumentException();
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI 연결 설정이 잘못되었습니다.");
         }
@@ -69,7 +71,7 @@ public class AiQuestionService {
             var body = json.writeValueAsString(new AiQuestion.Request(
                     request.question(), request.limit() == null ? 5 : request.limit()));
             HttpRequest.Builder builder = HttpRequest.newBuilder(target)
-                    .timeout(Duration.ofSeconds(9))
+                    .timeout(Duration.ofSeconds(35))
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .header("X-Internal-Service-Token", serviceToken)
@@ -83,6 +85,10 @@ public class AiQuestionService {
             if (result.statusCode() == 422) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "내신 평균등급을 포함하여 질문해 주세요.");
+            }
+            if (result.statusCode() == 429) {
+                throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                        "무료 AI 검색 한도에 도달했습니다. 일반 입결 검색을 이용해 주세요.");
             }
             if (result.statusCode() != 200) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 해석 서비스가 응답하지 않습니다.");
