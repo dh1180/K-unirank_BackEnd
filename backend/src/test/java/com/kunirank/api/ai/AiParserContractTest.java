@@ -32,6 +32,9 @@ class AiParserContractTest {
         var filters = AiQuestionService.parseFilters(mapper.readTree(valid));
         assertEquals("한국항공대학교", filters.university());
         assertEquals(1, filters.notes().size());
+        var group = AiQuestionService.parseFilters(mapper.readTree(valid.replace("한국항공대학교",
+                "중앙대학교,경희대학교,한국외국어대학교,서울시립대학교")));
+        assertEquals(4, group.university().split(",").length);
         assertThrows(ResponseStatusException.class, () -> AiQuestionService.parseFilters(
                 mapper.readTree(valid.replace("서울,경기,인천", "수도권추측"))));
         assertEquals("정시 대신 수시 내신을 입력해 주세요.", AiQuestionService.clarificationDetail(
