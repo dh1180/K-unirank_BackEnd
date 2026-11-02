@@ -23,6 +23,7 @@ public class ReadOnlyDeploymentFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                   FilterChain chain) throws ServletException, IOException {
         String path = request.getRequestURI().substring(request.getContextPath().length());
+        if (com.kunirank.api.config.DocumentationRoutes.isRead(request.getMethod(),path)) { chain.doFilter(request,response); return; }
         boolean queryRoute = path.matches("/api/v1/universities(?:/[0-9]+)?/?")
                 || path.matches("/api/v1/universities/regions/?")
                 || path.matches("/api/v1/universities/[0-9]+/overview/?")

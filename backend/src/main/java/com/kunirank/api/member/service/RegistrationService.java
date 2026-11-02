@@ -12,7 +12,9 @@ import org.springframework.web.server.ResponseStatusException;
 public class RegistrationService {
     public record Input(@NotBlank @Size(max=150) @Pattern(regexp="^[\\p{L}\\p{N}_@.+-]+$") String username,
                         @Size(max=254) @Email String email,
+                        @io.swagger.v3.oas.annotations.media.Schema(accessMode = io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY, format = "password")
                         @NotBlank @Size(min=8,max=256) String password,
+                        @io.swagger.v3.oas.annotations.media.Schema(accessMode = io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY, format = "password")
                         @NotBlank @Size(max=256) String passwordConfirm) {}
     private static final Set<String> COMMON = commonPasswords();
     private static Set<String> commonPasswords() {

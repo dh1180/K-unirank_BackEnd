@@ -26,3 +26,13 @@ management:
   endpoint:
     health:
       show-details: never
+
+springdoc:
+  packages-to-scan: com.kunirank.api
+  use-fqn: true
+  swagger-ui:
+    disable-swagger-default-url: true
+    validator-url: ""
+    persist-authorization: false
+    tags-sorter: alpha
+    operations-sorter: alpha

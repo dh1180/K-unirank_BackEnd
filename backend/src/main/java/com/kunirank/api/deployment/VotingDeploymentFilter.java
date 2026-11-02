@@ -26,6 +26,7 @@ public class VotingDeploymentFilter extends OncePerRequestFilter {
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain) throws ServletException,IOException {
         String path=request.getRequestURI();String method=request.getMethod();
         if (path.equals("/actuator/health") && Set.of("GET","HEAD").contains(method)) {chain.doFilter(request,response);return;}
+        if (com.kunirank.api.config.DocumentationRoutes.isRead(method,path)) {chain.doFilter(request,response);return;}
         boolean route=(path.equals("/api/v1/boards/overall/next") && method.equals("GET")) || ((path.equals("/api/v1/boards/overall/vote") || path.equals("/api/v1/boards/overall/result")) && method.equals("POST"));
         if (!route) {reject(response,503,"VOTING_ONLY_SERVICE");return;}
         String supplied=request.getHeader("X-VS-Frontend-Token");
