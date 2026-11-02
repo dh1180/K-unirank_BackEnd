@@ -29,9 +29,10 @@ public class GradeComparisonController {
             @RequestParam(required = false, name = "chart_min") Integer chartMin,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String region,
+            @RequestParam(required = false) String university,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "60") @Min(1) @Max(100) int size
     ) {
-        return comparisons.compare(grade, year, track, special, scope, chartMin, q, region, page, size);
+        return comparisons.compare(grade, year, track, special, scope, chartMin, q, region, page, size, university);
     }
 }
