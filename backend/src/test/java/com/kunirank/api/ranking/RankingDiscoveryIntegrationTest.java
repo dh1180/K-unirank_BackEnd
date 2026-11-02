@@ -26,6 +26,7 @@ class RankingDiscoveryIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired UniversityRepository universities;
     @Autowired MockMvc mvc;
+    @Autowired jakarta.persistence.EntityManager entityManager;
     long a,b;
     @BeforeEach void prepare() {
         a=universities.saveAndFlush(new University("가대학","서울특별시",true)).getId();
@@ -75,6 +76,22 @@ class RankingDiscoveryIntegrationTest {
             .andExpect(jsonPath("$.admissions.resultCount").value(1))
             .andExpect(jsonPath("$.admissions.ranges[0].min").value(90)).andExpect(jsonPath("$.admissions.ranges[0].max").value(90));
         org.junit.jupiter.api.Assertions.assertEquals(52,jdbc.queryForObject("SELECT value FROM admission_aggregates WHERE university_id=?",Integer.class,a));
+    }
+    @Test void shingyeongju99IsExcludedOnlyFromThatUniversityAggregates() throws Exception {
+        jdbc.update("UPDATE universities SET name='신경주대학교' WHERE university_id=?",a);
+        entityManager.clear();
+        result(a,99,100,"백분위","CSAT_PERCENTILE_MEAN_70_CUT");
+        result(a,50,10,"백분위","CSAT_PERCENTILE_MEAN_70_CUT");
+        result(b,99,10,"백분위","CSAT_PERCENTILE_MEAN_70_CUT");
+        jdbc.update("UPDATE admission_results SET admission_phase='JEONGSI',selection_category='수능'");
+        jdbc.update("INSERT INTO admission_aggregates(university_id,admission_year,admission_phase,selection_category,metric_code,aggregation_method,value,sample_count) VALUES (?,2026,'JEONGSI','수능','CSAT_PERCENTILE_MEAN_70_CUT','WEIGHTED_BY_RECRUITMENT',94.5,2),(?,2026,'JEONGSI','수능','CSAT_PERCENTILE_MEAN_70_CUT','WEIGHTED_BY_RECRUITMENT',99,1)",a,b);
+        mvc.perform(get("/api/v1/rankings/admissions").param("phase","JEONGSI"))
+            .andExpect(jsonPath("$.items[0].name").value("나대학")).andExpect(jsonPath("$.items[0].value").value(99))
+            .andExpect(jsonPath("$.items[1].value").value(50)).andExpect(jsonPath("$.items[1].sampleCount").value(1));
+        mvc.perform(get("/api/v1/universities/{id}/admission-reference",a)).andExpect(jsonPath("$.cuts[0].value70").value(50));
+        mvc.perform(get("/api/v1/universities/{id}/overview",a))
+            .andExpect(jsonPath("$.admissions.ranges[0].min").value(50)).andExpect(jsonPath("$.admissions.ranges[0].max").value(50));
+        org.junit.jupiter.api.Assertions.assertEquals(2,jdbc.queryForObject("SELECT count(*) FROM admission_metrics WHERE value=99",Integer.class));
     }
     void result(long university,double value,Integer weight,String unit,String metric) {
         long source=jdbc.queryForObject("INSERT INTO admission_sources(university_id,admission_year,source_type,source_url,document_title,collected_at,checksum) VALUES (?,2026,'PROCOLLEGE','','',now(),'') RETURNING source_id",Long.class,university);
