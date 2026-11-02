@@ -4,6 +4,7 @@ import com.kunirank.api.admission.entity.AdmissionMetric;
 import com.kunirank.api.admission.entity.AdmissionResult;
 import com.kunirank.api.admission.policy.AdmissionResultPolicy;
 import com.kunirank.api.admission.policy.AdmissionMetricQuality;
+import com.kunirank.api.admission.policy.UniversityMetricQuality;
 import com.kunirank.api.admission.service.CleanAdmissionAggregates;
 import com.kunirank.api.admission.repository.AdmissionMetricRepository;
 import com.kunirank.api.admission.repository.AdmissionResultRepository;
@@ -107,7 +108,7 @@ public class RankingDiscoveryService {
             Map<Long,List<AdmissionMetric>> groups=new HashMap<>();
             if(!byId.isEmpty()) for(var metric:metrics.findByResultIdInOrderByResultIdAscMetricCodeAsc(byId.keySet())) {
                 boolean validUnit=unit.equals(metric.getUnit()) || (!susi && (metric.getUnit()==null||metric.getUnit().isEmpty()) && metric.getValue().compareTo(BigDecimal.valueOf(9))>0 && metric.getValue().compareTo(BigDecimal.valueOf(100))<=0);
-                if(code.equals(metric.getMetricCode()) && validUnit && AdmissionMetricQuality.valid(metric)) groups.computeIfAbsent(metric.getResult().getUniversity().getId(),ignored->new ArrayList<>()).add(metric);
+                if(code.equals(metric.getMetricCode()) && validUnit && UniversityMetricQuality.include(metric)) groups.computeIfAbsent(metric.getResult().getUniversity().getId(),ignored->new ArrayList<>()).add(metric);
             }
             for(var group:groups.values()) {
                 var weighted=group.stream().filter(m->m.getResult().getRecruitmentCount()!=null && m.getResult().getRecruitmentCount()>0).toList();

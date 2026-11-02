@@ -4,6 +4,7 @@ import com.kunirank.api.admission.entity.AdmissionMetric;
 import com.kunirank.api.admission.entity.AdmissionResult;
 import com.kunirank.api.admission.policy.AdmissionResultPolicy;
 import com.kunirank.api.admission.policy.AdmissionMetricQuality;
+import com.kunirank.api.admission.policy.UniversityMetricQuality;
 import com.kunirank.api.admission.repository.AdmissionMetricRepository;
 import com.kunirank.api.admission.repository.AdmissionResultRepository;
 import com.kunirank.api.ranking.discovery.RankingDiscoveryService;
@@ -74,7 +75,7 @@ public class UniversityOverviewService {
         Map<String, List<AdmissionMetric>> grouped = new TreeMap<>();
         for (var metric : metrics.findByResultIdInOrderByResultIdAscMetricCodeAsc(
                 published.stream().map(AdmissionResult::getId).toList())) {
-            if (!AdmissionMetricQuality.valid(metric) || !isComparableCut(metric)) continue;
+            if (!UniversityMetricQuality.include(metric) || !isComparableCut(metric)) continue;
             var r = metric.getResult();
             String key = r.getPhase() + "\u001f" + r.getSelectionCategory() + "\u001f" + metric.getMetricCode();
             grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(metric);
