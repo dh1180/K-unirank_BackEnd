@@ -26,7 +26,7 @@ public class VotingDeploymentFilter extends OncePerRequestFilter {
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain) throws ServletException,IOException {
         String path=request.getRequestURI();String method=request.getMethod();
         if (path.equals("/actuator/health") && Set.of("GET","HEAD").contains(method)) {chain.doFilter(request,response);return;}
-        boolean route=(path.equals("/api/v1/boards/overall/next") && method.equals("GET")) || (path.equals("/api/v1/boards/overall/vote") && method.equals("POST"));
+        boolean route=(path.equals("/api/v1/boards/overall/next") && method.equals("GET")) || ((path.equals("/api/v1/boards/overall/vote") || path.equals("/api/v1/boards/overall/result")) && method.equals("POST"));
         if (!route) {reject(response,503,"VOTING_ONLY_SERVICE");return;}
         String supplied=request.getHeader("X-VS-Frontend-Token");
         if (token.length()<32 || supplied==null || !MessageDigest.isEqual(token.getBytes(StandardCharsets.UTF_8),supplied.getBytes(StandardCharsets.UTF_8))) {reject(response,403,"INVALID_FRONTEND");return;}

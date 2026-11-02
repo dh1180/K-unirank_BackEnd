@@ -19,6 +19,18 @@ import org.springframework.stereotype.Component;
 public class DjangoPasswordVerifier {
     private static final int MAX_ITERATIONS = 3_000_000;
 
+    public String encode(char[] password) {
+        byte[] saltBytes = new byte[18];
+        new java.security.SecureRandom().nextBytes(saltBytes);
+        String salt = Base64.getUrlEncoder().withoutPadding().encodeToString(saltBytes);
+        PBEKeySpec spec = new PBEKeySpec(password, salt.getBytes(StandardCharsets.UTF_8), 1_200_000, 256);
+        try {
+            return "pbkdf2_sha256$1200000$" + salt + "$" + Base64.getEncoder().encodeToString(
+                    SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded());
+        } catch (GeneralSecurityException ex) { throw new IllegalStateException(ex); }
+        finally { spec.clearPassword(); }
+    }
+
     public boolean matches(char[] password, String encoded) {
         if (password == null || encoded == null || encoded.length() > 512) return false;
         String[] parts = encoded.split("\\$", -1);

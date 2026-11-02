@@ -17,10 +17,12 @@ import org.springframework.web.bind.annotation.*;
 public class MemberController {
     private final MemberSessionService sessions;
     private final boolean secure;
+    private final com.kunirank.api.member.service.RegistrationService registration;
 
-    public MemberController(MemberSessionService sessions,
+    public MemberController(MemberSessionService sessions, com.kunirank.api.member.service.RegistrationService registration,
                             @Value("${MEMBER_COOKIE_SECURE:true}") boolean secure) {
         this.sessions = sessions;
+        this.registration = registration;
         this.secure = secure;
     }
 
@@ -40,6 +42,22 @@ public class MemberController {
         response.addHeader(HttpHeaders.SET_COOKIE,
                 cookie(auth.token(), Duration.ofHours(1)).toString());
         return auth.profile();
+    }
+
+    @PostMapping("/register")
+    public MemberAccount.PublicProfile register(@Valid @RequestBody com.kunirank.api.member.service.RegistrationService.Input input,
+                                                HttpServletResponse response) {
+        sessions.requireEnabled();
+        registration.create(input);
+        var auth = sessions.login(input.username(), input.password());
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie(auth.token(), Duration.ofHours(1)).toString());
+        return auth.profile();
+    }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public org.springframework.http.ResponseEntity<java.util.Map<String,String>> error(org.springframework.web.server.ResponseStatusException ex) {
+        return org.springframework.http.ResponseEntity.status(ex.getStatusCode()).body(
+                java.util.Map.of("detail", ex.getReason()==null ? "요청을 처리하지 못했습니다." : ex.getReason()));
     }
 
     @GetMapping("/me")

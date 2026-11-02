@@ -31,6 +31,7 @@ public class ReadOnlyDeploymentFilter extends OncePerRequestFilter {
                 || path.matches("/api/v1/admissions/(?:results|compare|universities/[0-9]+|units/[0-9]+)/?")
                 || path.matches("/api/v1/boards/[^/]+/ranking/?")
                 || path.matches("/api/v1/rankings/(?:catalog|admissions|indicators/[a-z-]+)/?")
+                || path.matches("/api/v1/results/[a-fA-F0-9-]{36}/?")
                 || path.equals("/actuator/health");
         // AI accepts text by POST, but only parses filters and invokes the same read queries.
         // Its controller separately requires an operator flag and private BFF token.

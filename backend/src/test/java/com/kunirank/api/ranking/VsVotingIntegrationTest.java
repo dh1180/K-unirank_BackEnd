@@ -39,6 +39,7 @@ class VsVotingIntegrationTest {
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine");
 
     @Autowired MockMvc mvc;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Autowired ObjectMapper mapper;
     @Autowired RankingBoardRepository boards;
     @Autowired UniversityRatingRepository ratings;
@@ -51,6 +52,8 @@ class VsVotingIntegrationTest {
 
     @BeforeEach
     void setup() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS personal_results(result_id UUID PRIMARY KEY,session_id UUID NOT NULL,board_id BIGINT NOT NULL,vote_count INTEGER NOT NULL,result_json JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL)");
+        jdbc.update("DELETE FROM personal_results");
         votes.deleteAll();
         ratings.deleteAll();
         sessions.deleteAll();
@@ -59,6 +62,26 @@ class VsVotingIntegrationTest {
         board = boards.save(new RankingBoard("overall", "종합", true));
         a = universities.save(new University("가대학", "서울", true));
         b = universities.save(new University("나대학", "서울", true));
+    }
+
+    @Test
+    void createsCompatiblePersonalResultsWithoutChangingPublicRatings() throws Exception {
+        Challenge c=challenge();
+        var session=sessions.findFirstBySessionKeyOrderByLastSeenAtDesc(c.cookie()).orElseThrow();
+        mvc.perform(post("/api/v1/boards/overall/result").cookie(new Cookie("kunirank_vs",c.cookie())).contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isUnprocessableEntity());
+        for(int i=0;i<5;i++)votes.saveAndFlush(new ComparisonVote(board,session,a,b,a,false));
+        var result=mvc.perform(post("/api/v1/boards/overall/result").cookie(new Cookie("kunirank_vs",c.cookie())).contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.voteCount").value(5))
+            .andExpect(jsonPath("$.payload.top10[0].name").value(a.getName()))
+            .andExpect(jsonPath("$.payload.top10[0].wins").value(5)).andReturn().getResponse();
+        String id=mapper.readTree(result.getContentAsByteArray()).path("id").asText();
+        mvc.perform(get("/api/v1/results/"+id)).andExpect(status().isOk()).andExpect(jsonPath("$.payload.total_votes").value(5));
+        mvc.perform(post("/api/v1/boards/overall/result").cookie(new Cookie("kunirank_vs",c.cookie())).contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id));
+        mvc.perform(post("/api/v1/boards/overall/result").cookie(new Cookie("kunirank_vs","forged-cookie-that-is-not-real"))).andExpect(status().isUnauthorized());
+        assertEquals(0,ratings.count());
+        assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM personal_results",Integer.class));
     }
 
     record Challenge(String cookie, long a, long b, String signed) {}
