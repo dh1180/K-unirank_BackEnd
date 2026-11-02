@@ -91,3 +91,12 @@ GET /actuator/health
 기존 투표와 평점을 초기화하지 않습니다. 평점 갱신은 행 잠금과 교착 재시도로 기존 Django 투표 처리와 조정합니다. `VotingProfileIntegrationTest`는 실제 스키마 형태와 제한된 DB 역할로 투표 저장 및 금지된 쓰기 거부를 검증합니다.
 
 대학 지역 필터는 `GET /api/v1/universities/regions`의 실제 활성 대학 지역 전체를 사용합니다.
+
+
+### Legacy runtime retirement
+
+Native registration uses `db/registration.sql` and `db/legacy-runtime-grants.sql`, applied by the existing database owner. The application role receives EXECUTE on a fixed security-definer registration function, not INSERT/UPDATE on auth_user. New accounts are always active non-staff/non-superuser accounts. Password hashing remains Django PBKDF2-SHA256 compatible. Common-password rejection uses Django's bundled public dictionary (BSD-3-Clause; see resources/DJANGO-LICENSE.txt).
+
+Member history reads are scoped by the current authenticated member; association of an anonymous voting session cannot overwrite another member's association. Shared personal results retain existing UUID and JSON payloads, with new results built from at least five selected votes in the caller's opaque VS session. Public Glicko ratings are not modified by personal-result creation.
+
+The former Django support feature is disabled in production and remains unavailable. Generic Django admin data editing is not exposed by the native admin statistics page; operational access to the old admin requires temporarily resuming web. Existing data are not removed when web is scaled to zero.

@@ -118,3 +118,9 @@ CREATE TABLE admission_aggregates (
  value numeric(14,5) NOT NULL, sample_count integer NOT NULL DEFAULT 0,
  calculated_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE personal_results (
+ result_id uuid PRIMARY KEY, session_id uuid NOT NULL REFERENCES vote_sessions(session_id),
+ board_id bigint NOT NULL REFERENCES ranking_boards(board_id),vote_count integer NOT NULL,
+ result_json jsonb NOT NULL,created_at timestamptz NOT NULL
+);

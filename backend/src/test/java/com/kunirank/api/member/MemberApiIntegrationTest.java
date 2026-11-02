@@ -57,6 +57,7 @@ class MemberApiIntegrationTest {
               id BIGSERIAL PRIMARY KEY,
               username VARCHAR(150) NOT NULL UNIQUE,
               password VARCHAR(128) NOT NULL,
+              email VARCHAR(254) NOT NULL DEFAULT '', first_name VARCHAR(150) NOT NULL DEFAULT '',last_name VARCHAR(150) NOT NULL DEFAULT '',date_joined TIMESTAMPTZ NOT NULL DEFAULT now(),
               is_active BOOLEAN NOT NULL DEFAULT TRUE,
               is_staff BOOLEAN NOT NULL DEFAULT FALSE,
               is_superuser BOOLEAN NOT NULL DEFAULT FALSE
@@ -83,11 +84,20 @@ class MemberApiIntegrationTest {
         new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
                 new org.springframework.core.io.ClassPathResource("db/member-security.sql"))
                 .execute(java.util.Objects.requireNonNull(jdbc.getDataSource()));
+        var registrationSql = new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource("db/registration.sql"));
+        registrationSql.setSeparator(";;");
+        registrationSql.execute(java.util.Objects.requireNonNull(jdbc.getDataSource()));
         jdbc.update("DELETE FROM kunirank_member_sessions");
         jdbc.update("DELETE FROM kunirank_member_limits");
         jdbc.update("DELETE FROM favorite_recruitment_units");
         jdbc.update("DELETE FROM favorite_universities");
         jdbc.update("DELETE FROM auth_user");
+        jdbc.execute("ALTER TABLE vote_sessions ADD COLUMN IF NOT EXISTS user_id BIGINT");
+        jdbc.update("DELETE FROM comparison_votes");
+        jdbc.update("DELETE FROM university_ratings");
+        jdbc.update("DELETE FROM vote_sessions");
+        jdbc.update("DELETE FROM ranking_boards");
         units.deleteAll();
         universities.deleteAll();
         jdbc.update("INSERT INTO auth_user (username,password,is_active) VALUES (?,?,?)",
@@ -109,6 +119,54 @@ class MemberApiIntegrationTest {
         assertTrue(header.contains("SameSite=Strict"));
         assertFalse(header.contains("password"));
         return new Cookie("kunirank_member", header.split(";")[0].split("=", 2)[1]);
+    }
+
+    @Test
+    void registrationFunctionCannotSetAdminFlagsOrModifyExistingUsers() {
+        jdbc.execute("DO $$ BEGIN CREATE ROLE native_registration_test; EXCEPTION WHEN duplicate_object THEN NULL; END $$");
+        jdbc.execute("GRANT USAGE ON SCHEMA public TO native_registration_test");
+        jdbc.execute("GRANT EXECUTE ON FUNCTION kunirank_register_member(text,text,text) TO native_registration_test");
+        String hash=new com.kunirank.api.member.security.DjangoPasswordVerifier().encode("SafeUniqueTest!234".toCharArray());
+        jdbc.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
+            try(var statement=connection.createStatement()) {
+                statement.execute("SET ROLE native_registration_test");
+                try(var call=connection.prepareStatement("SELECT kunirank_register_member(?,?,?)")) {
+                    call.setString(1,"restricted-signup");call.setString(2,hash);call.setString(3,"");call.execute();
+                }
+                assertThrows(java.sql.SQLException.class,()->statement.execute("UPDATE auth_user SET is_superuser=true WHERE username='restricted-signup'"));
+            } finally {try(var reset=connection.createStatement()){reset.execute("RESET ROLE");}}
+            return null;
+        });
+        assertFalse(jdbc.queryForObject("SELECT is_superuser OR is_staff FROM auth_user WHERE username='restricted-signup'",Boolean.class));
+    }
+
+    @Test
+    void onlyReadsOwnHistoryAndCannotTakeAnotherMembersVoteSession() throws Exception {
+        Cookie cookie=login();
+        Long user=jdbc.queryForObject("SELECT id FROM auth_user WHERE username=?",Long.class,username);
+        java.util.UUID owned=java.util.UUID.randomUUID(),other=java.util.UUID.randomUUID();
+        jdbc.update("INSERT INTO vote_sessions(session_id,session_key,ip_hash,vote_count,created_at,last_seen_at,user_id) VALUES(?,?,'',0,now(),now(),NULL)",owned,"owned-session-key-123456789012345");
+        jdbc.update("INSERT INTO vote_sessions(session_id,session_key,ip_hash,vote_count,created_at,last_seen_at,user_id) VALUES(?,?,'',0,now(),now(),?)",other,"other-session-key-123456789012345",user+1000);
+        mvc.perform(post("/api/v1/member/link-vote-session").cookie(cookie).contentType(MediaType.APPLICATION_JSON).content("{\"sessionKey\":\"owned-session-key-123456789012345\"}"))
+            .andExpect(status().isOk());
+        assertEquals(user,jdbc.queryForObject("SELECT user_id FROM vote_sessions WHERE session_id=?",Long.class,owned));
+        mvc.perform(post("/api/v1/member/link-vote-session").cookie(cookie).contentType(MediaType.APPLICATION_JSON).content("{\"sessionKey\":\"other-session-key-123456789012345\"}"))
+            .andExpect(status().isOk());
+        assertEquals(user+1000,jdbc.queryForObject("SELECT user_id FROM vote_sessions WHERE session_id=?",Long.class,other));
+        mvc.perform(get("/api/v1/member/history").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/v1/member/history")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void registersNonPrivilegedCompatibleAccountAndRejectsDuplicateOrMismatch() throws Exception {
+        var body=Map.of("username","new-student", "email","student@example.org", "password","LongUnique!Member2026", "passwordConfirm","LongUnique!Member2026");
+        var result=mvc.perform(post("/api/v1/member/register").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
+          .andExpect(status().isOk()).andExpect(jsonPath("$.username").value("new-student")).andExpect(jsonPath("$.admin").value(false)).andReturn().getResponse();
+        assertNotNull(result.getHeader("Set-Cookie"));
+        assertFalse(jdbc.queryForObject("SELECT is_staff OR is_superuser FROM auth_user WHERE username='new-student'",Boolean.class));
+        mvc.perform(post("/api/v1/member/login").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("username","new-student","password","LongUnique!Member2026")))).andExpect(status().isOk());
+        mvc.perform(post("/api/v1/member/register").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body))).andExpect(status().isConflict());
+        mvc.perform(post("/api/v1/member/register").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of("username","new-other","password","LongUnique!Member2026","passwordConfirm","different")))).andExpect(status().isUnprocessableEntity());
     }
 
     @Test
@@ -223,6 +281,10 @@ class MemberApiIntegrationTest {
                 .andExpect(status().isUnauthorized());
         assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM kunirank_member_sessions",Integer.class));
         assertNotEquals(cookie.getValue(),jdbc.queryForObject("SELECT token_hash FROM kunirank_member_sessions",String.class));
+        var registrationSql = new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource("db/registration.sql"));
+        registrationSql.setSeparator(";;");
+        registrationSql.execute(java.util.Objects.requireNonNull(jdbc.getDataSource()));
         jdbc.update("DELETE FROM kunirank_member_sessions");
         mvc.perform(get("/api/v1/member/favorites/universities").cookie(cookie)).andExpect(status().isUnauthorized());
     }
