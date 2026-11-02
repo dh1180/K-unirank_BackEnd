@@ -52,4 +52,23 @@ class ReadOnlyDeploymentIntegrationTest {
         assertEquals(0L, jdbc.queryForObject("SELECT count(*) FROM vote_sessions", Long.class));
         assertEquals(0L, jdbc.queryForObject("SELECT count(*) FROM comparison_votes", Long.class));
     }
+
+    @Test
+    void servesGroupedDocumentationWithoutEnablingProtectedWrites() throws Exception {
+        mvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
+        mvc.perform(get("/v3/api-docs/public")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.openapi").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/admissions/results'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/member/login']").doesNotExist())
+            .andExpect(jsonPath("$.paths['/api/v1/boards/{slug}/next']").doesNotExist());
+        mvc.perform(get("/v3/api-docs/member")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/member/login'].post").exists())
+            .andExpect(jsonPath("$.components.schemas.*.properties.password.writeOnly").value(org.hamcrest.Matchers.hasItem(true)));
+        mvc.perform(get("/v3/api-docs/voting")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/boards/{slug}/vote'].post").exists());
+        mvc.perform(get("/v3/api-docs/ai")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/v1/ai/questions'].post").exists());
+        mvc.perform(post("/v3/api-docs/member")).andExpect(status().isServiceUnavailable());
+        mvc.perform(post("/api/v1/member/register")).andExpect(status().isServiceUnavailable());
+    }
 }

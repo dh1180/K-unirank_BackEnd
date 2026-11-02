@@ -27,6 +27,7 @@ public class MemberController {
     }
 
     public record Credentials(@NotBlank @Size(max = 150) String username,
+                              @io.swagger.v3.oas.annotations.media.Schema(accessMode = io.swagger.v3.oas.annotations.media.Schema.AccessMode.WRITE_ONLY, format = "password")
                               @NotBlank @Size(max = 256) String password) {}
 
     private ResponseCookie cookie(String value, Duration age) {

@@ -27,6 +27,7 @@ public class MemberDeploymentFilter extends OncePerRequestFilter {
                                              FilterChain chain) throws ServletException, IOException {
         String path=req.getRequestURI(), method=req.getMethod();
         if (path.equals("/actuator/health") && Set.of("GET","HEAD").contains(method)) {chain.doFilter(req,res);return;}
+        if (com.kunirank.api.config.DocumentationRoutes.isRead(method,path)) {chain.doFilter(req,res);return;}
         boolean read="GET".equals(method) && (path.equals("/api/v1/member/me") || path.equals("/api/v1/member/history")
                 || path.matches("/api/v1/member/favorites/(universities|units)")
                 || path.equals("/api/v1/admin/overview"));
