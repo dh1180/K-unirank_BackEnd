@@ -109,7 +109,7 @@ class GradeComparisonApiIntegrationTest {
     @Test
     void removesRestrictedAdmissionTracksUnlessSpecialAll() throws Exception {
         add(unit("경영학과"), adiga, "학생부교과", "일반", "3.0", "3.1");
-        add(unit("통계학과"), adiga, "학생부교과", "지역인재", "3.0", "3.1");
+        add(unit("통계학과"), adiga, "학생부교과", "기회균등할당제", "3.0", "3.1");
         mvc.perform(get("/api/v1/admissions/compare")
                         .param("grade", "3.1").param("scope", "all"))
                 .andExpect(status().isOk())
@@ -154,6 +154,22 @@ class GradeComparisonApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(2))
                 .andExpect(jsonPath("$.chartUniversityCount").value(0));
+    }
+
+    @Test
+    void preservesMultiRegionAndExactUniversityConstraints() throws Exception {
+        add(unit("컴퓨터공학과"), adiga, "학생부교과", "일반", "3.0", "3.1");
+        mvc.perform(get("/api/v1/admissions/compare").param("grade", "3.1")
+                        .param("region", "경기,서울").param("university", "새빛대학교"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(1));
+        mvc.perform(get("/api/v1/admissions/compare").param("grade", "3.1")
+                        .param("region", "경기,인천"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(0));
+        mvc.perform(get("/api/v1/admissions/compare").param("grade", "3.1")
+                        .param("university", "다른대학교"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(0));
+        mvc.perform(get("/api/v1/admissions/compare").param("grade", "3.1").param("region", "잘못된지역"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

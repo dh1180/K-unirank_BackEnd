@@ -22,7 +22,7 @@ public class GradeComparisonService {
     private static final List<String> RESTRICTED_SELECTION_TERMS = List.of(
             "농어촌", "농·어촌", "특성화고", "특성화 고", "특성화고교",
             "기초생활", "기초수급", "차상위", "저소득", "고른기회",
-            "기회균형", "사회통합", "사회배려", "국가보훈",
+            "기회균형", "기회균등", "사회통합", "사회배려", "국가보훈",
             "보훈대상", "특수교육", "장애인", "서해5도", "북한이탈",
             "재직자", "만학도", "평생학습", "성인학습",
             "재외국민", "외국인", "다문화", "지역인재"
@@ -58,6 +58,14 @@ public class GradeComparisonService {
     public GradeComparisonResponse compare(BigDecimal inputGrade, Integer requestedYear,
             String rawTrack, String rawSpecial, String rawScope, Integer requestedChartMin,
             String rawQuery, String rawRegion, int page, int size) {
+        return compare(inputGrade, requestedYear, rawTrack, rawSpecial, rawScope,
+                requestedChartMin, rawQuery, rawRegion, page, size, null);
+    }
+
+    @Transactional(readOnly = true)
+    public GradeComparisonResponse compare(BigDecimal inputGrade, Integer requestedYear,
+            String rawTrack, String rawSpecial, String rawScope, Integer requestedChartMin,
+            String rawQuery, String rawRegion, int page, int size, String rawUniversity) {
         BigDecimal grade = inputGrade.setScale(2, RoundingMode.HALF_EVEN);
         String track = "holistic".equalsIgnoreCase(rawTrack) ? "holistic" : "student";
         String category = "student".equals(track) ? "학생부교과" : "학생부종합";
@@ -65,8 +73,11 @@ public class GradeComparisonService {
         String scope = "all".equals(rawScope) ? "all" : "near";
         int chartMin = requestedChartMin != null && Set.of(1, 2, 3, 5).contains(requestedChartMin)
                 ? requestedChartMin : 2;
-        String region = rawRegion != null && VALID_REGIONS.contains(rawRegion.strip())
-                ? rawRegion.strip() : "";
+        List<String> regions = csv(rawRegion, 17, 60);
+        if (!VALID_REGIONS.containsAll(regions))
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "지역 조건을 확인해 주세요.");
+        List<String> universities = csv(rawUniversity, 3, 160);
         List<String> terms = rawQuery == null ? List.of()
                 : Arrays.stream(rawQuery.strip().split(","))
                     .map(String::strip).filter(t -> !t.isEmpty()).limit(5).toList();
@@ -89,7 +100,9 @@ public class GradeComparisonService {
             if (!terms.isEmpty() && terms.stream().noneMatch(term ->
                     result.getUnit().getName().toLowerCase(Locale.ROOT)
                             .contains(term.toLowerCase(Locale.ROOT)))) continue;
-            if (!region.isEmpty() && !matchesRegion(result.getUniversity(), region)) continue;
+            if (!regions.isEmpty() && regions.stream().noneMatch(r -> matchesRegion(result.getUniversity(), r))) continue;
+            if (!universities.isEmpty() && universities.stream().noneMatch(name ->
+                    result.getUniversity().getName().replace(" ", "").equalsIgnoreCase(name.replace(" ", "")))) continue;
 
             RawResult row = rawResults.computeIfAbsent(result.getId(), id -> new RawResult(result));
             if ("STUDENT_GRADE_70_CUT".equals(metric.getMetricCode())) {
@@ -170,6 +183,15 @@ public class GradeComparisonService {
         return new GradeComparisonResponse(grade, selectedYear, years, track, special,
                 scope, chartMin, totalCount, chartCount, page, size,
                 end < totalCount, rows.subList(start, end), visibleCharts);
+    }
+
+    private static List<String> csv(String raw, int max, int length) {
+        if (raw == null || raw.isBlank()) return List.of();
+        var values = Arrays.stream(raw.split(",", -1)).map(String::strip).distinct().toList();
+        if (raw.length() > length || values.size() > max || values.stream().anyMatch(String::isEmpty))
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "검색 조건을 확인해 주세요.");
+        return values;
     }
 
     private static boolean matchesRegion(University university, String region) {

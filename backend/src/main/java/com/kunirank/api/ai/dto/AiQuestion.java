@@ -3,6 +3,7 @@ package com.kunirank.api.ai.dto;
 import com.kunirank.api.admission.dto.GradeComparisonResponse;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import java.util.List;
 
 public final class AiQuestion {
     private AiQuestion() {}
@@ -11,7 +12,7 @@ public final class AiQuestion {
                           @Min(1) @Max(10) Integer limit) {}
 
     public record Filters(BigDecimal grade, Integer year, String track, String special,
-                          String scope, String region, String major, int limit) {}
+                          String scope, String region, String major, String university, List<String> notes, int limit) {}
 
     public record Response(Filters filters, GradeComparisonResponse admissions,
                            String evidencePolicy) {}
