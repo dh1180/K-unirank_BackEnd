@@ -30,8 +30,8 @@ public class MemberDeploymentFilter extends OncePerRequestFilter {
         if (com.kunirank.api.config.DocumentationRoutes.isRead(method,path)) {chain.doFilter(req,res);return;}
         boolean read="GET".equals(method) && (path.equals("/api/v1/member/me") || path.equals("/api/v1/member/history")
                 || path.matches("/api/v1/member/favorites/(universities|units)")
-                || path.equals("/api/v1/admin/overview"));
-        boolean write=("POST".equals(method) && path.matches("/api/v1/member/(login|logout|register|link-vote-session)"))
+                || path.matches("/api/v1/admin/(overview|members|quality)"));
+        boolean write=("POST".equals(method) && (path.matches("/api/v1/member/(login|logout|register|link-vote-session)") || path.equals("/api/v1/member/ai/usage")))
                 || (Set.of("PUT","DELETE").contains(method)
                     && path.matches("/api/v1/member/favorites/(universities|units)/[1-9][0-9]*"));
         if (!read && !write) {reject(res,404,"지원하지 않는 요청입니다.");return;}

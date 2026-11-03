@@ -84,6 +84,9 @@ class MemberApiIntegrationTest {
         new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
                 new org.springframework.core.io.ClassPathResource("db/member-security.sql"))
                 .execute(java.util.Objects.requireNonNull(jdbc.getDataSource()));
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource("db/ai-usage.sql"))
+                .execute(java.util.Objects.requireNonNull(jdbc.getDataSource()));
         var registrationSql = new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
                 new org.springframework.core.io.ClassPathResource("db/registration.sql"));
         registrationSql.setSeparator(";;");
@@ -272,6 +275,40 @@ class MemberApiIntegrationTest {
         mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isOk());
         jdbc.update("UPDATE auth_user SET is_active=false WHERE username=?",username);
         mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adminSearchAndQualityAreRoleCheckedAndNeverExposeCredentialFields() throws Exception {
+        mvc.perform(get("/api/v1/admin/members")).andExpect(status().isUnauthorized());
+        Cookie cookie=login();
+        mvc.perform(get("/api/v1/admin/members").cookie(cookie)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/admin/quality").cookie(cookie)).andExpect(status().isForbidden());
+        jdbc.update("UPDATE auth_user SET is_staff=true WHERE username=?",username);
+        mvc.perform(get("/api/v1/admin/members").param("q",username).cookie(cookie)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.total").value(1)).andExpect(jsonPath("$.items[0].username").value(username))
+            .andExpect(jsonPath("$.items[0].password").doesNotExist()).andExpect(jsonPath("$.items[0].email").doesNotExist());
+        mvc.perform(get("/api/v1/admin/members").param("q","%' OR 1=1 --").cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/v1/admin/members").param("state","invalid").cookie(cookie)).andExpect(status().isBadRequest());
+        for(String kind:java.util.List.of("sentinel","shingyeongju","range"))
+            mvc.perform(get("/api/v1/admin/quality").param("kind",kind).cookie(cookie)).andExpect(status().isOk()).andExpect(jsonPath("$.items").isArray());
+        mvc.perform(get("/api/v1/admin/quality").param("kind","invalid").cookie(cookie)).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.activity.length()").value(7)).andExpect(jsonPath("$.activeSessions").value(1));
+    }
+
+    @Test
+    void aiUsageRequiresCurrentSessionAndIsIdempotentWithoutPromptStorage() throws Exception {
+        var body=Map.of("requestId",java.util.UUID.randomUUID().toString(),"statusCode",200,"elapsedMs",1250);
+        mvc.perform(post("/api/v1/member/ai/usage").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body))).andExpect(status().isUnauthorized());
+        Cookie cookie=login();
+        for(int i=0;i<2;i++)mvc.perform(post("/api/v1/member/ai/usage").cookie(cookie).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body))).andExpect(status().isOk());
+        assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM kunirank_ai_requests",Integer.class));
+        jdbc.update("UPDATE auth_user SET is_staff=true WHERE username=?",username);
+        mvc.perform(get("/api/v1/admin/overview").cookie(cookie)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.aiUsage.requests").value(1)).andExpect(jsonPath("$.aiUsage.successes").value(1))
+            .andExpect(jsonPath("$.recentAiRequests[0].username").value(username));
+        mvc.perform(post("/api/v1/member/logout").cookie(cookie)).andExpect(status().isOk());
+        mvc.perform(post("/api/v1/member/ai/usage").cookie(cookie).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body))).andExpect(status().isUnauthorized());
     }
 
     @Test
