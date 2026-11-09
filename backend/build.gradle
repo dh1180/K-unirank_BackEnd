@@ -18,6 +18,9 @@ repositories {
     mavenCentral()
 }
 
+// Testcontainers 1.21.4 negotiates the API version required by Docker Engine 29.
+ext['testcontainers.version'] = '1.21.4'
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${PGHOST}:${PGPORT:5432}/${PGDATABASE}
+  sql:
+    init:
+      mode: never
+
+management:
+  health:
+    db:
+      ignore-routing-data-sources: true
+
+MEMBER_AUTH_ENABLED: true
