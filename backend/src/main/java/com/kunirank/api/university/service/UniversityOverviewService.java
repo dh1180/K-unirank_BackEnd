@@ -11,8 +11,7 @@ import com.kunirank.api.ranking.discovery.RankingDiscoveryService;
 import com.kunirank.api.university.repository.UniversityRepository;
 import java.math.BigDecimal;
 import java.util.*;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,6 +39,7 @@ public class UniversityOverviewService {
         this.jdbc = jdbc; this.universities = universities; this.results = results; this.metrics = metrics;
     }
 
+    @Cacheable(cacheNames = "university-overview", sync = true)
     public Overview overview(long id) {
         universities.findById(id).filter(u -> u.isActive()).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "대학을 찾을 수 없습니다."));
@@ -67,10 +67,9 @@ public class UniversityOverviewService {
                 .and(AdmissionResultPolicy.filtered(null, null, null))
                 .and(AdmissionResultPolicy.hasPublicMetric())
                 .and((root, query, cb) -> cb.equal(root.get("university").get("id"), id));
-        var latest = results.findAll(base, PageRequest.of(0, 1,
-                Sort.by(Sort.Direction.DESC, "admissionYear").and(Sort.by("id"))));
+        var latest = results.latestYear(base);
         if (latest.isEmpty()) return new Overview(indicators, new Admissions(null, 0, 0, 0, List.of()));
-        int year = latest.getContent().getFirst().getAdmissionYear();
+        int year = latest.get();
         var published = results.findAll(base.and(AdmissionResultPolicy.inYear(year)));
         Map<String, List<AdmissionMetric>> grouped = new TreeMap<>();
         for (var metric : metrics.findByResultIdInOrderByResultIdAscMetricCodeAsc(

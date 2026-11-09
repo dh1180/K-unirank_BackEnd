@@ -1,4 +1,9 @@
 spring:
+  cache:
+    type: caffeine
+    cache-names: university-overview,admission-reference
+    caffeine:
+      spec: maximumSize=256,expireAfterWrite=5m
   datasource:
     url: jdbc:postgresql://${PGHOST}:${PGPORT:5432}/${PGDATABASE}
   sql:
