@@ -6,9 +6,7 @@ import com.kunirank.api.admission.service.CleanAdmissionAggregates;
 import com.kunirank.api.university.repository.UniversityRepository;
 import java.math.BigDecimal;
 import java.util.*;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
@@ -27,17 +25,18 @@ public class AdmissionReferenceService {
     public AdmissionReferenceService(UniversityRepository universities,AdmissionResultRepository results,CleanAdmissionAggregates aggregates) {
         this.universities=universities;this.results=results;this.aggregates=aggregates;
     }
+    @Cacheable(cacheNames = "admission-reference", sync = true)
     public Reference reference(long id) {
         universities.findById(id).filter(u->u.isActive()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
-        var latest=results.findAll(AdmissionResultPolicy.visible().and((root,q,cb)->cb.equal(root.get("university").get("id"),id)),
-            PageRequest.of(0,1,Sort.by(Sort.Direction.DESC,"admissionYear").and(Sort.by("id"))));
+        var latest=results.latestYear(AdmissionResultPolicy.visible()
+                .and((root,q,cb)->cb.equal(root.get("university").get("id"),id)));
         if(latest.isEmpty()) return new Reference(null,List.of());
-        int year=latest.getContent().getFirst().getAdmissionYear();
+        int year=latest.get();
         var rows=aggregates.load(year,id,null,null,null).stream().map(a->new Aggregate(a.key().phase(),a.key().category(),a.key().code(),a.value())).toList();
         List<Cut> cuts=new ArrayList<>();
         add(cuts,rows,"SUSI","학생부교과","STUDENT_GRADE","교과 등급","등급","CONVERTED_SCORE","교과 환산","점");
         add(cuts,rows,"JEONGSI","수능","CSAT_PERCENTILE_MEAN","수능 평백","백분위","CSAT_CONVERTED_SCORE","수능 환산","점");
-        return new Reference(year,cuts);
+        return new Reference(year,List.copyOf(cuts));
     }
     private void add(List<Cut> cuts,List<Aggregate> rows,String phase,String category,String preferred,String label,String unit,String fallback,String fallbackLabel,String fallbackUnit) {
         Map<String,BigDecimal> values=new HashMap<>();

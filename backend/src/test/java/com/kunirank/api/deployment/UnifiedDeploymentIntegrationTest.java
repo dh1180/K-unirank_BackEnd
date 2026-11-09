@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -39,6 +40,7 @@ class UnifiedDeploymentIntegrationTest {
     @Autowired UnifiedDeploymentFilter filter;
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
+    @Autowired CacheManager caches;
 
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) throws Exception {
@@ -53,6 +55,10 @@ class UnifiedDeploymentIntegrationTest {
                     )
                     """);
             sql.execute("GRANT SELECT, INSERT, UPDATE ON kunirank_member_limits TO member_unified_test");
+            sql.execute("""
+                    INSERT INTO universities(university_id, name, is_active, created_at, updated_at)
+                    VALUES (100, 'Cache test university', true, now(), now())
+                    """);
         }
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("PGUSER", postgres::getUsername);
@@ -86,6 +92,24 @@ class UnifiedDeploymentIntegrationTest {
 
         assertEquals(postgres.getUsername(), jdbc.queryForObject("SELECT current_user", String.class));
         assertEquals("on", jdbc.queryForObject("SHOW default_transaction_read_only", String.class));
+    }
+
+    @Test
+    void cachesOnlySuccessfulPublicUniversitySummaries() throws Exception {
+        for (String endpoint : new String[] {"overview", "admission-reference"}) {
+            var cache = caches.getCache(endpoint.equals("overview") ? "university-overview" : endpoint);
+            assertNotNull(cache);
+            var first = mvc.perform(get("/api/v1/universities/100/" + endpoint))
+                    .andExpect(status().isOk()).andReturn();
+            var entry = cache.get(100L);
+            assertNotNull(entry);
+            var second = mvc.perform(get("/api/v1/universities/100/" + endpoint))
+                    .andExpect(status().isOk()).andReturn();
+            assertEquals(first.getResponse().getContentAsString(), second.getResponse().getContentAsString());
+            assertSame(entry.get(), cache.get(100L).get());
+            mvc.perform(get("/api/v1/universities/999999/" + endpoint)).andExpect(status().isNotFound());
+            assertNull(cache.get(999999L));
+        }
     }
 
     @Test

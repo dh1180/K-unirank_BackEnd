@@ -43,11 +43,7 @@ public class AdmissionQueryService {
         Integer selected = year;
         if (selected == null) {
             // Match Django's default: newest visible admission year.
-            Page<AdmissionResult> latest = results.findAll(
-                    base, PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "admissionYear")
-                            .and(Sort.by("id")))
-            );
-            selected = latest.isEmpty() ? null : latest.getContent().get(0).getAdmissionYear();
+            selected = results.latestYear(base).orElse(null);
         }
         return page(base, selected, page, size);
     }
