@@ -93,6 +93,21 @@ class OpenRouterIntentParserTest {
     }
 
     @Test
+    void malformedProviderFiltersStillUseOnlyExplicitKnownSubjects() throws Exception {
+        for (String content : new String[] {"{}", "null", "not json", """
+                {"grade":1,"major":"다른학과","sql":"unexpected"}
+                """}) {
+            reply(content);
+            var parsed = parser("test", "openrouter/free", 40)
+                    .extract("내신 2.5 한국항공대 컴공 교과 찾아줘", 5);
+            assertEquals("한국항공대학교", parsed.university());
+            assertEquals("컴퓨터,소프트웨어,컴퓨팅", parsed.major());
+            assertEquals(new java.math.BigDecimal("2.5"), parsed.grade());
+            assertEquals("student", parsed.track());
+        }
+    }
+
+    @Test
     void budgetReleasesConcurrentSlotsAndResetsOnlyDailyCountAtUtcBoundary() {
         Clock clock = mock(Clock.class);
         when(clock.getZone()).thenReturn(ZoneOffset.UTC);

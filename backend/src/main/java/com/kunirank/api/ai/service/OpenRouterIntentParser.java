@@ -94,7 +94,7 @@ public class OpenRouterIntentParser {
             if (parsed == null || !parsed.isObject() || !FIELDS.equals(fields)
                     || !(parsed.path("major").isNull() || parsed.path("major").isTextual()
                         && parsed.path("major").asText().length() <= 100))
-                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "LLM 검색 조건 형식이 잘못되었습니다.");
+                throw new IOException("Invalid provider filter schema");
             return validated(policy.resolve(explicit, parsed, question, limit));
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
