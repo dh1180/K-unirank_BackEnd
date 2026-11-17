@@ -2,6 +2,14 @@
 
 K-unirank의 **Spring Boot REST API 전용 저장소**입니다. 이전 `K-unirank_java`에서 저장소 이름을 바꾸었으며, 프런트엔드와 AI를 독립 저장소로 분리했습니다.
 
+## 2026-11-17 운영 갱신
+
+Railway의 `api` 한 프로세스가 `railway-unified` 프로필로 조회·회원·투표·AI 검색을 처리합니다. AI 질문 해석은 Spring에서 OpenRouter를 직접 호출합니다. 아래 이전 전환 단계의 별도 FastAPI·라즈베리파이 설명은 당시 설계 기록입니다.
+
+`OPENROUTER_API_KEY`, `LLM_MODEL`(기본 `openrouter/free` 또는 `:free` 모델), `DAILY_REQUEST_LIMIT`(기본 40), `MAX_AI_CONCURRENCY`(기본 2), `LLM_TIMEOUT_SECONDS`(기본 30)를 `api`에 설정합니다. 모델 요청은 입력·출력 단가 0으로 제한합니다. 일일 한도는 UTC 기준이며 프로세스가 재시작하면 초기화됩니다. 회원 인증과 `AI_GATEWAY_ENABLED`·`AI_FRONTEND_TOKEN` 검증을 거쳐 기존 `/api/v1/ai/questions`로 요청합니다.
+
+대학 별칭·지역·전형·등급 조건은 Java 정책으로 검증하고, 모델 장애 시 명시적으로 인식한 대학·학과 조건으로 조회합니다. `AI_PARSER_URL`, `AI_INTERNAL_TOKEN`, `AI_CF_CLIENT_ID`, `AI_CF_CLIENT_SECRET`은 이 구현에서 사용하지 않습니다. 기존 Python 정책 94개 사례를 `ai-policy-parity.json`에 보존해 대학군·캠퍼스·모호한 조건과 오류 메시지를 비교합니다.
+
 | 구성 요소 | 저장소 | 기술 |
 |---|---|---|
 | BackEnd | [K-unirank_BackEnd](https://github.com/dh1180/K-unirank_BackEnd) | Java 21 · Spring Boot 3.5 · PostgreSQL |
