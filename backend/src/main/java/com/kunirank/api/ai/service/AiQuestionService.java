@@ -1,103 +1,38 @@
 package com.kunirank.api.ai.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kunirank.api.admission.service.GradeComparisonService;
 import com.kunirank.api.ai.dto.AiQuestion;
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Set;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.Semaphore;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Spring owns PostgreSQL reads. The private Railway AI service only parses filters.
+ * Spring parses questions through OpenRouter and composes answers from PostgreSQL evidence.
  */
 @Service
 public class AiQuestionService {
     private final GradeComparisonService comparisons;
-    private final ObjectMapper json;
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(3))
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build();
+    private final OpenRouterIntentParser parser;
     private final Semaphore permits = new Semaphore(3);
-    private final String parserUrl;
-    private final String serviceToken;
-    private final String cfClientId;
-    private final String cfClientSecret;
 
-    public AiQuestionService(GradeComparisonService comparisons, ObjectMapper json,
-                             @Value("${AI_PARSER_URL:}") String parserUrl,
-                             @Value("${AI_INTERNAL_TOKEN:}") String serviceToken,
-                             @Value("${AI_CF_CLIENT_ID:}") String cfClientId,
-                             @Value("${AI_CF_CLIENT_SECRET:}") String cfClientSecret) {
+    public AiQuestionService(GradeComparisonService comparisons, OpenRouterIntentParser parser) {
         this.comparisons = comparisons;
-        this.json = json;
-        this.parserUrl = parserUrl;
-        this.serviceToken = serviceToken;
-        this.cfClientId = cfClientId;
-        this.cfClientSecret = cfClientSecret;
+        this.parser = parser;
     }
 
     public AiQuestion.Response ask(AiQuestion.Request request) {
-        if (serviceToken.length() < 32 || parserUrl.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI 연동이 설정되지 않았습니다.");
-        }
-        URI target;
-        try {
-            target = URI.create(parserUrl);
-            boolean privateRailway = "http".equals(target.getScheme())
-                    && "ai.railway.internal".equals(target.getHost()) && target.getPort() == 8000;
-            if (!("https".equals(target.getScheme()) || privateRailway) || target.getHost() == null
-                    || !target.getPath().equals("/api/v1/ai/parse")
-                    || target.getRawUserInfo() != null || target.getRawQuery() != null
-                    || target.getRawFragment() != null) throw new IllegalArgumentException();
-        } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI 연결 설정이 잘못되었습니다.");
-        }
         if (!permits.tryAcquire()) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "AI 요청이 많습니다.");
         }
         try {
-            var body = json.writeValueAsString(new AiQuestion.Request(
-                    request.question(), request.limit() == null ? 5 : request.limit()));
-            HttpRequest.Builder builder = HttpRequest.newBuilder(target)
-                    .timeout(Duration.ofSeconds(35))
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
-                    .header("X-Internal-Service-Token", serviceToken)
-                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
-            if (!cfClientId.isEmpty() && !cfClientSecret.isEmpty()) {
-                builder.header("CF-Access-Client-Id", cfClientId)
-                        .header("CF-Access-Client-Secret", cfClientSecret);
-            }
-            HttpResponse<String> result = http.send(builder.build(),
-                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (result.statusCode() == 422) {
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                        clarificationDetail(json.readTree(result.body())));
-            }
-            if (result.statusCode() == 429) {
-                throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                        "무료 AI 검색 한도에 도달했습니다. 일반 입결 검색을 이용해 주세요.");
-            }
-            if (result.statusCode() != 200) {
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 해석 서비스가 응답하지 않습니다.");
-            }
-            JsonNode root = json.readTree(result.body());
-            AiQuestion.Filters filters = parseFilters(root);
+            AiQuestion.Filters filters = parser.extract(request.question(), request.limit() == null ? 5 : request.limit());
             var admissions = comparisons.compare(filters.grade(), filters.year(), filters.track(),
                     filters.special(), filters.scope(), 2,
                     filters.major(), filters.region(), 0, filters.limit(), filters.university());
@@ -118,7 +53,7 @@ public class AiQuestionService {
                 ? detail.asText() : "내신 평균등급을 포함하여 질문해 주세요.";
     }
 
-    // Validate the private parser response again at the trust boundary.
+    // Validate resolved constraints before passing them to database queries.
     public static AiQuestion.Filters parseFilters(JsonNode root) {
         try {
             BigDecimal grade = new BigDecimal(root.path("grade").asText());
