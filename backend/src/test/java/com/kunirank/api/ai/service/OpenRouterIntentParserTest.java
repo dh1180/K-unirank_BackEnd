@@ -60,7 +60,44 @@ class OpenRouterIntentParserTest {
     }
 
     @Test
-    void refusesMissingKeyPaidModelAndAmbiguousQuestionsBeforeAnyProviderCall() {
+    void approvedSolUsesBoundedPricesLowReasoningAndNoUnsupportedTemperature() throws Exception {
+        reply("""
+                {"grade":3,"year":null,"track":"student","special":"exclude","scope":"near","region":null,"major":"언어재활"}
+                """);
+        var parsed=parser("test", "openai/gpt-6.1-sol", 40).extract("내신 3.0 언어재활 관련 전공 찾아줘",5);
+        assertEquals("언어재활",parsed.major());
+        var request=ArgumentCaptor.forClass(HttpRequest.class);
+        verify(http,times(1)).send(request.capture(),org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
+        var bytes=new java.io.ByteArrayOutputStream();
+        request.getValue().bodyPublisher().orElseThrow().subscribe(new Flow.Subscriber<ByteBuffer>() {
+            public void onSubscribe(Flow.Subscription subscription) {subscription.request(Long.MAX_VALUE);}
+            public void onNext(ByteBuffer buffer) {byte[] chunk=new byte[buffer.remaining()];buffer.get(chunk);bytes.writeBytes(chunk);}
+            public void onError(Throwable error) {fail(error);}
+            public void onComplete() {}
+        });
+        var body=json.readTree(bytes.toByteArray());
+        assertEquals("openai/gpt-6.1-sol",body.path("model").asText());
+        assertEquals(2,body.at("/provider/max_price/prompt").asInt());
+        assertEquals(10,body.at("/provider/max_price/completion").asInt());
+        assertEquals("low",body.at("/reasoning/effort").asText());
+        assertTrue(body.at("/reasoning/exclude").asBoolean());
+        assertEquals(768,body.path("max_tokens").asInt());
+        assertTrue(body.at("/response_format/json_schema/strict").asBoolean());
+        assertTrue(body.at("/provider/require_parameters").asBoolean());
+        assertFalse(body.has("temperature")); assertFalse(body.has("models")); assertFalse(body.has("tools"));
+    }
+
+    @Test
+    void failedPaidRequestConsumesBudgetAndNeverRetriesOrSwitchesModels() throws Exception {
+        when(http.send(any(),org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any())).thenThrow(new IOException("offline"));
+        var paid=parser("test","openai/gpt-6.1-sol",1);
+        assertEquals(503,assertThrows(ResponseStatusException.class,()->paid.extract("내신 3.0 언어재활 관련 전공 찾아줘",5)).getStatusCode().value());
+        assertEquals(429,assertThrows(ResponseStatusException.class,()->paid.extract("내신 3.0 언어재활 관련 전공 찾아줘",5)).getStatusCode().value());
+        verify(http,times(1)).send(any(),org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
+    }
+
+    @Test
+    void refusesMissingKeyUnapprovedPaidModelAndAmbiguousQuestionsBeforeAnyProviderCall() {
         assertEquals(503, assertThrows(ResponseStatusException.class,
                 () -> parser("", "openrouter/free", 40).extract("내신 3.0 컴공 찾아줘", 5)).getStatusCode().value());
         assertEquals(503, assertThrows(ResponseStatusException.class,
