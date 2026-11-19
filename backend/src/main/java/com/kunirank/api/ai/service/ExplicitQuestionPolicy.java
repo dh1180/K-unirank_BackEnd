@@ -43,7 +43,10 @@ public class ExplicitQuestionPolicy {
         public boolean hasKnownSubject() { return major != null || university != null; }
     }
 
-    public Explicit read(String question) {
+    public Explicit read(String question) { return read(question, true); }
+
+    /** Lookup mode has no invented student grade; the remaining explicit constraints are unchanged. */
+    public Explicit read(String question, boolean gradeRequired) {
         require(!has("정시|평백|백분위|표준점수", question),
                 "현재 AI 검색은 9등급제 내신의 수시 교과·종합 입결 비교를 지원합니다. 정시·백분위는 입결 찾기에서 확인해 주세요.");
         require(!has("5\\s*등급\\s*제|성취도|[ABCDEabcde]\\s*등급", question),
@@ -51,14 +54,14 @@ public class ExplicitQuestionPolicy {
         require(!has("등급\\s*(?:초반|중반|후반|대(?:인데|로|에서|\\s|$))|(?<![\\d.])[1-9](?:\\.\\d+)?\\s*[~∼-]\\s*[1-9](?:\\.\\d+)?\\s*등급", question),
                 "등급대 대신 정확한 평균등급을 알려주세요. 예: 내신 3.25등급");
         String normalized = question.replaceAll("([1-9])\\s*점\\s*(\\d{1,2})(?!\\d)", "$1.$2");
-        var gradeTerms = captures("(?:내신|평균등급|평균)\\s*(?:평균)?\\s*(?:등급)?\\s*(?:이|은|는|:)?\\s*([1-9](?:\\.\\d{1,2})?)(?![\\d.])", normalized);
-        if (gradeTerms.isEmpty()) gradeTerms = captures("(?<![\\d.])([1-9](?:\\.\\d{1,2})?)\\s*등급(?!\\s*제)", normalized);
+        var gradeTerms = new ArrayList<>(captures("(?:내신|평균등급|평균)\\s*(?:평균)?\\s*(?:등급)?\\s*(?:이|은|는|:)?\\s*([1-9](?:\\.\\d{1,2})?)(?![\\d.])", normalized));
+        gradeTerms.addAll(captures("(?<![\\d.])([1-9](?:\\.\\d{1,2})?)\\s*등급(?!\\s*제)", normalized));
         Set<BigDecimal> grades = new TreeSet<>();
         gradeTerms.forEach(value -> grades.add(new BigDecimal(value)));
-        require(!grades.isEmpty(), "내신 평균등급을 알려주세요. 예: 내신 3.25등급 서울 간호학과");
-        require(grades.size() == 1, "여러 내신 등급이 입력되었습니다. 비교할 본인의 평균등급 하나만 알려주세요.");
-        BigDecimal grade = grades.iterator().next();
-        require(grade.compareTo(BigDecimal.ONE) >= 0 && grade.compareTo(BigDecimal.valueOf(9)) <= 0,
+        require(!gradeRequired || !grades.isEmpty(), "내신 평균등급을 알려주세요. 예: 내신 3.25등급 서울 간호학과");
+        require(grades.size() <= 1, "여러 내신 등급이 입력되었습니다. 비교할 본인의 평균등급 하나만 알려주세요.");
+        BigDecimal grade = grades.isEmpty() ? null : grades.iterator().next();
+        require(grade == null || grade.compareTo(BigDecimal.ONE) >= 0 && grade.compareTo(BigDecimal.valueOf(9)) <= 0,
                 "내신 평균등급은 1.00~9.00 범위로 입력해 주세요.");
         var years = new LinkedHashSet<>(captures("(?<!\\d)(20\\d{2})(?!\\d)", question));
         require(years.size() <= 1, "비교할 입결 학년도를 하나만 지정해 주세요.");

@@ -20,11 +20,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class AiQuestionService {
     private final GradeComparisonService comparisons;
     private final OpenRouterIntentParser parser;
+    private final AiConversationPolicy conversation;
+    private final AiEvidenceService evidence;
+    private final OfficialGuideSearch guides;
     private final Semaphore permits = new Semaphore(3);
 
-    public AiQuestionService(GradeComparisonService comparisons, OpenRouterIntentParser parser) {
+    public AiQuestionService(GradeComparisonService comparisons, OpenRouterIntentParser parser, AiConversationPolicy conversation, AiEvidenceService evidence, OfficialGuideSearch guides) {
         this.comparisons = comparisons;
         this.parser = parser;
+        this.conversation=conversation; this.evidence=evidence; this.guides=guides;
     }
 
     public AiQuestion.Response ask(AiQuestion.Request request) {
@@ -32,12 +36,38 @@ public class AiQuestionService {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "AI 요청이 많습니다.");
         }
         try {
-            AiQuestion.Filters filters = parser.extract(request.question(), request.limit() == null ? 5 : request.limit());
-            var admissions = comparisons.compare(filters.grade(), filters.year(), filters.track(),
-                    filters.special(), filters.scope(), 2,
-                    filters.major(), filters.region(), 0, filters.limit(), filters.university());
-            return new AiQuestion.Response(filters, admissions,
-                    "입결 숫자·모집단위는 Spring Boot 조회 결과만 사용하며 합격을 보장하지 않습니다.");
+            AiQuestion.Filters filters=conversation.resolve(request);
+            boolean document=conversation.documents(request.question());
+            // Known aliases and follow-ups are deterministic. The model only assists an unfamiliar first-turn major.
+            if (!document && request.context()==null && filters.grade()!=null && filters.major()==null && filters.university()==null)
+                filters=parser.extract(request.question(),filters.limit());
+            if(document) return guides.answer(filters,request.question());
+            var admissions=lookup(filters,filters.university());
+            boolean comparing=filters.university()!=null && filters.university().contains(",")
+                    && request.question().matches("(?is).*(비교|차이|vs|어디가).*" );
+            var schools=new ArrayList<AiQuestion.School>();
+            var explanations=new ArrayList<AiQuestion.Evidence>();
+            if(comparing) {
+                String[] names=filters.university().split(",");
+                if(names.length>4) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,"대학 비교는 한 번에 4개까지 가능합니다. 비교할 대학을 지정해 주세요.");
+                // Keep a single admission year across schools; no silent per-school year substitutions.
+                var aligned=new AiQuestion.Filters(filters.grade(),admissions.selectedYear(),filters.track(),filters.special(),
+                        filters.scope(),filters.region(),filters.major(),filters.university(),filters.notes(),filters.limit());
+                for(String name:names) {
+                    var schoolAdmissions=lookup(aligned,name);
+                    schools.add(new AiQuestion.School(name,schoolAdmissions,evidence.overview(name)));
+                    explanations.addAll(evidence.explain(schoolAdmissions.items(),filters.grade(),schoolAdmissions.selectedYear()));
+                }
+            } else explanations.addAll(evidence.explain(admissions.items(),filters.grade(),admissions.selectedYear()));
+            var resolved=new AiQuestion.Filters(filters.grade(),admissions.selectedYear(),filters.track(),filters.special(),filters.scope(),
+                    filters.region(),filters.major(),filters.university(),filters.notes(),filters.limit());
+            String summary=comparing ? "같은 학년도와 검색 조건의 공개 자료를 대학별로 비교합니다. 전형별 반영 방법이 달라 단순 우열이나 합격 가능성을 뜻하지 않습니다."
+                    : filters.grade()==null ? "내신 등급 없이 공개 입결을 조회했습니다. 50%·70% 컷을 함께 확인하세요."
+                    : "입력한 조건과 공개 컷의 등급 차이로 정렬했습니다. 각 결과에서 선정 근거와 공식 출처를 확인할 수 있습니다.";
+            return new AiQuestion.Response(filters,admissions,
+                    "입결 숫자·모집단위는 Spring Boot 조회 결과만 사용하며 합격을 보장하지 않습니다.",
+                    comparing?"schools":filters.grade()==null?"lookup":"comparison",summary,AiConversationPolicy.context(resolved),
+                    List.copyOf(explanations),List.copyOf(schools),List.of());
         } catch (ResponseStatusException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -45,6 +75,15 @@ public class AiQuestionService {
         } finally {
             permits.release();
         }
+    }
+
+    private com.kunirank.api.admission.dto.GradeComparisonResponse lookup(AiQuestion.Filters filters,String university) {
+        var result=comparisons.compare(filters.grade(),filters.year(),filters.track(),filters.special(),filters.scope(),2,
+                filters.major(),filters.region(),0,filters.limit(),university);
+        if(filters.year()!=null && !filters.year().equals(result.selectedYear()))
+            return new com.kunirank.api.admission.dto.GradeComparisonResponse(filters.grade(),filters.year(),result.availableYears(),
+                    filters.track(),filters.special(),filters.scope(),2,0,0,0,filters.limit(),false,List.of(),List.of());
+        return result;
     }
 
     public static String clarificationDetail(JsonNode root) {
