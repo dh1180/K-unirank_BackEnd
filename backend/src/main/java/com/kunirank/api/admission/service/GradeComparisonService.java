@@ -66,11 +66,11 @@ public class GradeComparisonService {
     public GradeComparisonResponse compare(BigDecimal inputGrade, Integer requestedYear,
             String rawTrack, String rawSpecial, String rawScope, Integer requestedChartMin,
             String rawQuery, String rawRegion, int page, int size, String rawUniversity) {
-        BigDecimal grade = inputGrade.setScale(2, RoundingMode.HALF_EVEN);
+        BigDecimal grade = inputGrade == null ? null : inputGrade.setScale(2, RoundingMode.HALF_EVEN);
         String track = "holistic".equalsIgnoreCase(rawTrack) ? "holistic" : "student";
         String category = "student".equals(track) ? "학생부교과" : "학생부종합";
         String special = "all".equals(rawSpecial) ? "all" : "exclude";
-        String scope = "all".equals(rawScope) ? "all" : "near";
+        String scope = grade == null || "all".equals(rawScope) ? "all" : "near";
         int chartMin = requestedChartMin != null && Set.of(1, 2, 3, 5).contains(requestedChartMin)
                 ? requestedChartMin : 2;
         List<String> regions = csv(rawRegion, 17, 60);
@@ -123,7 +123,7 @@ public class GradeComparisonService {
 
             BigDecimal reference = raw.cut70 != null ? raw.cut70 : raw.cut50;
             if (reference == null) continue;
-            BigDecimal gap = grade.subtract(reference).setScale(2, RoundingMode.HALF_EVEN);
+            BigDecimal gap = grade == null ? null : grade.subtract(reference).setScale(2, RoundingMode.HALF_EVEN);
             GradeComparisonRow row = new GradeComparisonRow(
                     result.getId(), result.getUniversity().getId(), result.getUniversity().getName(),
                     result.getUnit().getId(), result.getUnit().getName(), result.getSelectionCategory(),
@@ -132,7 +132,7 @@ public class GradeComparisonService {
                     raw.cut70 != null ? "70% 컷" : "50% 컷",
                     result.getSource().getSourceType(),
                     "UNIVERSITY".equals(result.getSource().getSourceType()) ? "대학 입학처" : "대입정보포털 어디가",
-                    positionLabel(gap), positionTone(gap), gap, gap.abs()
+                    gap == null ? "공개 입결 조회" : positionLabel(gap), gap == null ? "neutral" : positionTone(gap), gap, gap == null ? null : gap.abs()
             );
             Key key = new Key(row.universityId(), row.recruitmentUnitId(),
                     row.selectionCategory(), result.getSelectionName().strip().toLowerCase(Locale.ROOT));
@@ -142,12 +142,12 @@ public class GradeComparisonService {
             }
         }
 
-        BigDecimal low = grade.subtract(HALF_RANGE).max(MIN_GRADE);
-        BigDecimal high = grade.add(HALF_RANGE).min(MAX_GRADE);
+        BigDecimal low = grade == null ? MIN_GRADE : grade.subtract(HALF_RANGE).max(MIN_GRADE);
+        BigDecimal high = grade == null ? MAX_GRADE : grade.add(HALF_RANGE).min(MAX_GRADE);
         List<GradeComparisonRow> rows = deduplicated.values().stream()
                 .filter(row -> "all".equals(scope) ||
                         (row.referenceCut().compareTo(low) >= 0 && row.referenceCut().compareTo(high) <= 0))
-                .sorted(Comparator.comparing(GradeComparisonRow::absoluteGap)
+                .sorted(Comparator.comparing(GradeComparisonRow::absoluteGap, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(GradeComparisonRow::referenceCut)
                         .thenComparing(GradeComparisonRow::universityName)
                         .thenComparing(GradeComparisonRow::recruitmentUnitName)
@@ -160,6 +160,7 @@ public class GradeComparisonService {
                         LinkedHashMap::new, Collectors.toList()));
         List<GradeComparisonChart> charts = new ArrayList<>();
         for (List<GradeComparisonRow> group : groups.values()) {
+            if (grade == null) break;
             List<GradeComparisonRow> cuts70 = group.stream().filter(r -> r.cut70() != null).toList();
             List<GradeComparisonRow> comparable = cuts70.isEmpty() ? group : cuts70;
             if (comparable.size() < chartMin) continue;

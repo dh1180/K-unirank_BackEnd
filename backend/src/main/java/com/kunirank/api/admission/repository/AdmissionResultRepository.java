@@ -16,6 +16,10 @@ public interface AdmissionResultRepository extends JpaRepository<AdmissionResult
     }
 
     @Override
+    @EntityGraph(attributePaths = {"source"})
+    java.util.List<AdmissionResult> findAllById(Iterable<Long> ids);
+
+    @Override
     @EntityGraph(attributePaths = {"university", "unit", "source"})
     org.springframework.data.domain.Page<AdmissionResult> findAll(
             org.springframework.data.jpa.domain.Specification<AdmissionResult> spec,
