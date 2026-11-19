@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class OpenRouterIntentParser {
+    private static final String APPROVED_PAID_MODEL = "openai/gpt-6.1-sol";
     private static final URI ENDPOINT = URI.create("https://openrouter.ai/api/v1/chat/completions");
     private static final Set<String> FIELDS = Set.of("grade", "year", "track", "special", "scope", "region", "major");
     private final ObjectMapper json;
@@ -65,8 +66,8 @@ public class OpenRouterIntentParser {
     }
 
     public AiQuestion.Filters extract(String question, int limit) {
-        if (!(model.equals("openrouter/free") || model.endsWith(":free")))
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "무료 모델만 사용할 수 있습니다.");
+        if (!(model.equals("openrouter/free") || model.endsWith(":free") || model.equals(APPROVED_PAID_MODEL)))
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "허용되지 않은 AI 모델입니다.");
         if (key.isBlank()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                 "LLM API가 설정되지 않았습니다. 정형 검색 기능을 이용해 주세요.");
         var explicit = policy.read(question);
@@ -74,6 +75,14 @@ public class OpenRouterIntentParser {
         try {
             ObjectNode body = template.deepCopy();
             body.put("model", model);
+            if (model.equals(APPROVED_PAID_MODEL)) {
+                // Sol does not accept temperature and requires reasoning. Bound the total output,
+                // including reasoning, and never route to a more expensive model/provider tier.
+                body.remove("temperature");
+                body.putObject("reasoning").put("effort", "low").put("exclude", true);
+                ObjectNode provider = (ObjectNode) body.get("provider");
+                provider.putObject("max_price").put("prompt", 2).put("completion", 10);
+            }
             body.withArray("messages").addObject().put("role", "user").put("content", question);
             var request = HttpRequest.newBuilder(ENDPOINT).timeout(timeout)
                     .header("Authorization", "Bearer " + key)
