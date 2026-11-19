@@ -46,7 +46,10 @@ class AiConversationPolicyTest {
         var guides=new OfficialGuideSearch(json);
         var result=guides.answer(ask("항공대 2027 수능최저 알려줘",null),"항공대 2027 수능최저 알려줘");
         assertFalse(result.passages().isEmpty());
-        result.passages().forEach(p->{assertEquals(2027,p.year());assertTrue(p.page()>0);assertTrue(p.sourceUrl().startsWith("https://ibhak.kau.ac.kr/"));assertTrue(p.sourceUrl().endsWith("#page="+p.page()));});
+        result.passages().forEach(p->{assertEquals(2027,p.year());assertTrue(p.page()>=43 && p.page()<=51);assertTrue(p.sourceUrl().startsWith("https://ibhak.kau.ac.kr/"));assertTrue(p.sourceUrl().endsWith("#page="+p.page()));});
+        var specific=guides.answer(ask("항공대 2027 학교장추천 수능최저",null),"항공대 2027 학교장추천 수능최저");
+        assertFalse(specific.passages().isEmpty());
+        specific.passages().forEach(p->assertTrue(p.page()>=47 && p.page()<=51));
         assertTrue(guides.answer(ask("항공대 2026 수능최저 알려줘",null),"최저").passages().isEmpty());
         assertTrue(guides.answer(ask("건국대 2027 면접 알려줘",null),"면접").passages().isEmpty());
     }

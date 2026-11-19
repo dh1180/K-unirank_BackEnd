@@ -24,6 +24,9 @@ for document in json.loads((ROOT/"scripts/ai-guide-manifest.json").read_text(enc
     assert len(raw)<=30*1024*1024 and raw.startswith(b"%PDF")
     reader=PdfReader(io.BytesIO(raw))
     assert not reader.is_encrypted and 1<=len(reader.pages)<=500
+    for section in document["sections"]:
+        assert 1 <= section["start"] <= section["end"] <= len(reader.pages)
+        assert section["track"] in {"student", "holistic", "essay", "practical"}
     pages=[]
     for number,page in enumerate(reader.pages,1):
         text=re.sub(r"[ \t]+"," ",page.extract_text() or "").strip()

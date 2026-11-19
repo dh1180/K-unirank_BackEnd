@@ -3,18 +3,228 @@
     "university": "한국항공대학교",
     "year": 2027,
     "title": "2027학년도 수시모집 신입생 모집요강(공지용, 2026-08-13)",
-    "sourceUrl": "https://ibhak.kau.ac.kr/upload/GUIDES/20260813105041001.pdf"
+    "sourceUrl": "https://ibhak.kau.ac.kr/upload/GUIDES/20260813105041001.pdf",
+    "sections": [
+      {
+        "start": 40,
+        "end": 42,
+        "track": "essay",
+        "name": "논술우수자"
+      },
+      {
+        "start": 43,
+        "end": 46,
+        "track": "student",
+        "name": "교과성적우수자"
+      },
+      {
+        "start": 47,
+        "end": 51,
+        "track": "student",
+        "name": "학교장추천"
+      },
+      {
+        "start": 52,
+        "end": 54,
+        "track": "holistic",
+        "name": "미래인재"
+      },
+      {
+        "start": 55,
+        "end": 57,
+        "track": "holistic",
+        "name": "고른기회"
+      }
+    ]
   },
   {
     "university": "가천대학교",
     "year": 2027,
     "title": "2027학년도 수시모집요강",
-    "sourceUrl": "https://admission.gachon.ac.kr/upload/BBS0021/20260522154511HBZYTW.PDF"
+    "sourceUrl": "https://admission.gachon.ac.kr/upload/BBS0021/20260522154511HBZYTW.PDF",
+    "sections": [
+      {
+        "start": 40,
+        "end": 41,
+        "track": "essay",
+        "name": "논술"
+      },
+      {
+        "start": 42,
+        "end": 43,
+        "track": "student",
+        "name": "학생부우수자"
+      },
+      {
+        "start": 44,
+        "end": 45,
+        "track": "student",
+        "name": "지역균형"
+      },
+      {
+        "start": 46,
+        "end": 47,
+        "track": "student",
+        "name": "지역의사선발"
+      },
+      {
+        "start": 48,
+        "end": 49,
+        "track": "student",
+        "name": "농어촌(교과)"
+      },
+      {
+        "start": 50,
+        "end": 53,
+        "track": "student",
+        "name": "특성화고교"
+      },
+      {
+        "start": 54,
+        "end": 57,
+        "track": "holistic",
+        "name": "학생부종합 가이드"
+      },
+      {
+        "start": 58,
+        "end": 59,
+        "track": "holistic",
+        "name": "가천바람개비"
+      },
+      {
+        "start": 60,
+        "end": 61,
+        "track": "holistic",
+        "name": "가천의약학"
+      },
+      {
+        "start": 62,
+        "end": 63,
+        "track": "holistic",
+        "name": "기회균형"
+      },
+      {
+        "start": 64,
+        "end": 65,
+        "track": "holistic",
+        "name": "농어촌(종합)"
+      },
+      {
+        "start": 66,
+        "end": 67,
+        "track": "holistic",
+        "name": "교육기회균형"
+      },
+      {
+        "start": 68,
+        "end": 69,
+        "track": "holistic",
+        "name": "특성화고졸재직자"
+      },
+      {
+        "start": 70,
+        "end": 71,
+        "track": "holistic",
+        "name": "조기취업형 계약학과"
+      },
+      {
+        "start": 72,
+        "end": 86,
+        "track": "practical",
+        "name": "실기우수자"
+      }
+    ]
   },
   {
     "university": "가천대학교",
     "year": 2026,
     "title": "2026학년도 수시모집요강",
-    "sourceUrl": "https://admission.gachon.ac.kr/upload/BBS0004/20250530163613WMJ2QW.PDF"
+    "sourceUrl": "https://admission.gachon.ac.kr/upload/BBS0004/20250530163613WMJ2QW.PDF",
+    "sections": [
+      {
+        "start": 14,
+        "end": 15,
+        "track": "essay",
+        "name": "논술"
+      },
+      {
+        "start": 16,
+        "end": 17,
+        "track": "student",
+        "name": "학생부우수자"
+      },
+      {
+        "start": 18,
+        "end": 19,
+        "track": "student",
+        "name": "지역균형"
+      },
+      {
+        "start": 20,
+        "end": 21,
+        "track": "student",
+        "name": "농어촌(교과)"
+      },
+      {
+        "start": 22,
+        "end": 25,
+        "track": "student",
+        "name": "특성화고교"
+      },
+      {
+        "start": 26,
+        "end": 27,
+        "track": "holistic",
+        "name": "학생부종합 가이드"
+      },
+      {
+        "start": 28,
+        "end": 29,
+        "track": "holistic",
+        "name": "가천바람개비"
+      },
+      {
+        "start": 30,
+        "end": 31,
+        "track": "holistic",
+        "name": "가천의약학"
+      },
+      {
+        "start": 32,
+        "end": 33,
+        "track": "holistic",
+        "name": "기회균형"
+      },
+      {
+        "start": 34,
+        "end": 35,
+        "track": "holistic",
+        "name": "농어촌(종합)"
+      },
+      {
+        "start": 36,
+        "end": 37,
+        "track": "holistic",
+        "name": "교육기회균형"
+      },
+      {
+        "start": 38,
+        "end": 39,
+        "track": "holistic",
+        "name": "특성화고졸재직자"
+      },
+      {
+        "start": 40,
+        "end": 41,
+        "track": "holistic",
+        "name": "조기취업형 계약학과"
+      },
+      {
+        "start": 42,
+        "end": 52,
+        "track": "practical",
+        "name": "실기우수자"
+      }
+    ]
   }
 ]

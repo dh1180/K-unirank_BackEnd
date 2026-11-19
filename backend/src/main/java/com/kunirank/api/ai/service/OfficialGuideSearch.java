@@ -11,7 +11,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class OfficialGuideSearch {
     record Page(int page,String text) {}
-    record Document(String university,int year,String title,String sourceUrl,String sha256,int pageCount,List<Page> pages) {}
+    record Section(int start,int end,String track,String name) {}
+    record Document(String university,int year,String title,String sourceUrl,String sha256,int pageCount,List<Page> pages,List<Section> sections) {}
     record Hit(Page page,int score) {}
     private final List<Document> documents;
     public OfficialGuideSearch(ObjectMapper json) {
@@ -30,14 +31,17 @@ public class OfficialGuideSearch {
             if(question.replace(" ","").contains(topic)) topics.add(topic);
         if(question.contains("일정")) topics.add("원서접수");
         if(topics.isEmpty()) topics.add("전형");
-        var selections=List.of("학교장추천","교과성적우수자","미래인재","고른기회","학생부우수자","지역균형","가천바람개비","가천의약학","농어촌")
-                .stream().filter(question.replace(" ","")::contains).toList();
         List<AiQuestion.Passage> passages=new ArrayList<>();
         for(Document doc:selected) {
             var hits=doc.pages().stream().map(page->{
+                var section=doc.sections().stream().filter(part->part.start()<=page.page()&&part.end()>=page.page()).findFirst();
+                var named=doc.sections().stream().filter(part->question.replace(" ","").contains(part.name().replace(" ",""))).toList();
+                // A keyword in an essay/other-track chapter must never masquerade as the requested track.
+                boolean topicSpecific=topics.stream().anyMatch(t->Set.of("최저","면접","지원자격","전형방법").contains(t));
+                if(!named.isEmpty() && (section.isEmpty()||!named.contains(section.get()))) return new Hit(page,0);
+                if(named.isEmpty() && (section.isPresent()&&!section.get().track().equals(f.track()) || topicSpecific&&section.isEmpty())) return new Hit(page,0);
                 String text=page.text().replaceAll("\\s", "");
                 int score=topics.stream().mapToInt(t->occurrences(text,t)*4).sum();
-                if(!selections.isEmpty() && selections.stream().noneMatch(text::contains)) score=0;
                 if(score>0) {
                     if(text.contains(f.track().equals("holistic")?"학생부종합":"학생부교과")) score+=5;
                     if(f.major()!=null) for(String term:f.major().split(",")) if(text.contains(term)) score+=3;
@@ -49,8 +53,9 @@ public class OfficialGuideSearch {
                 String text=hit.page().text(); int start=0;
                 for(String topic:topics) {int found=text.indexOf(topic);if(found>=0){start=Math.max(0,found-180);break;}}
                 int end=Math.min(text.length(),start+1000);
+                String sectionName=doc.sections().stream().filter(part->part.start()<=hit.page().page()&&part.end()>=hit.page().page()).map(Section::name).findFirst().orElse("공통 안내");
                 passages.add(new AiQuestion.Passage(doc.university(),doc.year(),doc.title(),hit.page().page(),
-                        (start>0?"…":"")+text.substring(start,end)+(end<text.length()?"…":""),doc.sourceUrl()+"#page="+hit.page().page()));
+                        "["+sectionName+"]\n"+(start>0?"…":"")+text.substring(start,end)+(end<text.length()?"…":""),doc.sourceUrl()+"#page="+hit.page().page()));
             }
         }
         var absent=names.stream().filter(n->selected.stream().noneMatch(d->d.university().equals(n))).toList();
